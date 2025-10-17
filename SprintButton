@@ -1,0 +1,156 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
+
+local isSprinting = false
+local normalSpeed = 16 -- Kecepatan normal
+local sprintSpeed = normalSpeed * 2 -- Kecepatan lari (2x lipat)
+
+-- Buat GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "SprintGui"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+-- Button Toggle (Sangat kecil dan compact)
+local toggleButton = Instance.new("TextButton")
+toggleButton.Name = "SprintToggle"
+toggleButton.Size = UDim2.new(0, 28, 0, 28)
+toggleButton.Position = UDim2.new(1, -40, 0.5, -100) -- Mepet ke layar kanan
+toggleButton.BackgroundColor3 = Color3.fromRGB(100, 200, 255)
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.TextSize = 16
+toggleButton.Text = "▶"
+toggleButton.Font = Enum.Font.GothamBold
+toggleButton.BorderSizePixel = 0
+toggleButton.Visible = true
+toggleButton.Parent = screenGui
+
+-- Shadow effect
+local shadow = Instance.new("TextButton")
+shadow.Name = "Shadow"
+shadow.Size = UDim2.new(1, 4, 1, 4)
+shadow.Position = UDim2.new(0, 2, 0, 2)
+shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+shadow.TextTransparency = 1
+shadow.BorderSizePixel = 0
+shadow.ZIndex = 0
+shadow.Parent = toggleButton
+
+local shadowCorner = Instance.new("UICorner")
+shadowCorner.CornerRadius = UDim.new(0, 15)
+shadowCorner.Parent = shadow
+
+-- UICorner untuk button yang rounded
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 15)
+corner.Parent = toggleButton
+
+-- UIStroke untuk border menarik
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(200, 230, 255)
+stroke.Thickness = 3
+stroke.Parent = toggleButton
+
+-- Status Label di bawah button
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Name = "StatusLabel"
+statusLabel.Size = UDim2.new(0, 70, 0, 18)
+statusLabel.Position = UDim2.new(1, -62, 0.5, -70)
+statusLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+statusLabel.BackgroundTransparency = 0.3
+statusLabel.TextColor3 = Color3.fromRGB(100, 200, 255)
+statusLabel.TextSize = 12
+statusLabel.Font = Enum.Font.GothamBold
+statusLabel.Text = "READY"
+statusLabel.BorderSizePixel = 0
+statusLabel.Parent = screenGui
+
+local statusCorner = Instance.new("UICorner")
+statusCorner.CornerRadius = UDim.new(0, 8)
+statusCorner.Parent = statusLabel
+
+-- Fungsi untuk update UI
+local function updateButtonUI()
+    if isSprinting then
+        -- Warna dan efek saat sedang lari
+        toggleButton.BackgroundColor3 = Color3.fromRGB(255, 100, 150)
+        stroke.Color = Color3.fromRGB(255, 200, 200)
+        toggleButton.Text = "⏸"
+        statusLabel.Text = "RUNNING"
+        statusLabel.TextColor3 = Color3.fromRGB(255, 100, 150)
+    else
+        -- Warna dan efek saat tidak lari
+        toggleButton.BackgroundColor3 = Color3.fromRGB(100, 200, 255)
+        stroke.Color = Color3.fromRGB(200, 230, 255)
+        toggleButton.Text = "▶"
+        statusLabel.Text = "READY"
+        statusLabel.TextColor3 = Color3.fromRGB(100, 200, 255)
+    end
+end
+
+-- Fungsi Sprint
+local function setSprinting(value)
+    isSprinting = value
+    
+    if isSprinting then
+        humanoid.WalkSpeed = sprintSpeed
+    else
+        humanoid.WalkSpeed = normalSpeed
+    end
+    
+    updateButtonUI()
+end
+
+-- Button click untuk toggle
+toggleButton.MouseButton1Click:Connect(function()
+    setSprinting(not isSprinting)
+    
+    -- Animasi rotasi saat diklik
+    local rotationTween = game:GetService("TweenService"):Create(
+        toggleButton,
+        TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+        {Rotation = toggleButton.Rotation + 360}
+    )
+    rotationTween:Play()
+end)
+
+-- Hover effect untuk button
+toggleButton.MouseEnter:Connect(function()
+    -- Animasi glow saat hover
+    local strokeTween = game:GetService("TweenService"):Create(
+        stroke,
+        TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        {Thickness = 5}
+    )
+    strokeTween:Play()
+end)
+
+toggleButton.MouseLeave:Connect(function()
+    -- Animasi glow kembali normal
+    local strokeTween = game:GetService("TweenService"):Create(
+        stroke,
+        TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        {Thickness = 3}
+    )
+    strokeTween:Play()
+end)
+
+-- Handle respawn - update character reference saja
+player.CharacterAdded:Connect(function(newCharacter)
+    character = newCharacter
+    humanoid = character:WaitForChild("Humanoid")
+    rootPart = character:WaitForChild("HumanoidRootPart")
+    
+    -- Terapkan sprint state ke character baru
+    if isSprinting then
+        humanoid.WalkSpeed = sprintSpeed
+    else
+        humanoid.WalkSpeed = normalSpeed
+    end
+end)
