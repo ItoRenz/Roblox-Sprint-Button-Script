@@ -10,6 +10,8 @@ local rootPart = character:WaitForChild("HumanoidRootPart")
 local isSprinting = false
 local normalSpeed = 16 -- Kecepatan normal
 local sprintSpeed = normalSpeed * 2 -- Kecepatan lari (2x lipat)
+local sprintEffects = {} -- Untuk menyimpan light stick di tangan
+local currentColor = Color3.fromRGB(255, 0, 0) -- Warna saat ini
 
 -- Buat GUI
 local screenGui = Instance.new("ScreenGui")
@@ -94,14 +96,88 @@ local function updateButtonUI()
     end
 end
 
+-- Fungsi untuk membuat light stick di tangan
+local function createHandLightSticks()
+    -- Hapus efek lama
+    for _, effect in pairs(sprintEffects) do
+        if effect and effect.Parent then
+            effect:Destroy()
+        end
+    end
+    sprintEffects = {}
+    
+    -- Cari tangan kanan dan kiri
+    local rightHand = character:FindFirstChild("RightHand")
+    local leftHand = character:FindFirstChild("LeftHand")
+    
+    local hands = {}
+    if rightHand then table.insert(hands, rightHand) end
+    if leftHand then table.insert(hands, leftHand) end
+    
+    -- Jika tidak ada, coba cari dari humanoid
+    if #hands == 0 then
+        for _, part in pairs(character:GetChildren()) do
+            if part.Name == "RightHand" or part.Name == "LeftHand" or 
+               part.Name == "RightLowerArm" or part.Name == "LeftLowerArm" then
+                table.insert(hands, part)
+            end
+        end
+    end
+    
+    -- Buat light stick untuk setiap tangan
+    for _, hand in pairs(hands) do
+        local lightStick = Instance.new("Part")
+        lightStick.Name = "LightStick"
+        lightStick.Shape = Enum.PartType.Block
+        lightStick.Material = Enum.Material.Neon
+        lightStick.Size = Vector3.new(0.2, 0.2, 1.5) -- Light stick panjang berbentuk balok
+        lightStick.CanCollide = false
+        lightStick.CFrame = hand.CFrame
+        lightStick.TopSurface = Enum.SurfaceType.Smooth
+        lightStick.BottomSurface = Enum.SurfaceType.Smooth
+        lightStick.Parent = hand
+        
+        -- Warna awal merah
+        lightStick.Color = Color3.fromRGB(255, 0, 0)
+        lightStick.Transparency = 0.1
+        
+        -- Weld ke tangan
+        local weld = Instance.new("WeldConstraint")
+        weld.Part0 = hand
+        weld.Part1 = lightStick
+        weld.Parent = lightStick
+        
+        -- PointLight untuk efek cahaya tambahan
+        local light = Instance.new("PointLight")
+        light.Brightness = 2
+        light.Range = 10
+        light.Color = Color3.fromRGB(255, 0, 0)
+        light.Parent = lightStick
+        
+        table.insert(sprintEffects, {stick = lightStick, light = light})
+    end
+end
+
+-- Fungsi untuk menghapus light stick
+local function removeHandLightSticks()
+    for _, effect in pairs(sprintEffects) do
+        if effect.stick and effect.stick.Parent then
+            effect.stick:Destroy()
+        end
+    end
+    sprintEffects = {}
+end
+
 -- Fungsi Sprint
 local function setSprinting(value)
     isSprinting = value
     
     if isSprinting then
         humanoid.WalkSpeed = sprintSpeed
+        createHandLightSticks()
     else
         humanoid.WalkSpeed = normalSpeed
+        removeHandLightSticks()
     end
     
     updateButtonUI()
@@ -141,15 +217,69 @@ toggleButton.MouseLeave:Connect(function()
     strokeTween:Play()
 end)
 
--- Handle respawn - update character reference saja
+-- Update warna light stick saat sprint
+RunService.Heartbeat:Connect(function()
+    if isSprinting then
+        -- Update warna dengan rainbow effect
+        local time = tick() * 3
+        local colorIndex = time % 12
+        
+        local r, g, b
+        
+        if colorIndex < 1 then
+            r = 255; g = 0; b = 0 -- Merah Cerah
+        elseif colorIndex < 2 then
+            r = 255; g = 165; b = 0 -- Orange
+        elseif colorIndex < 3 then
+            r = 255; g = 255; b = 0 -- Kuning Cerah
+        elseif colorIndex < 4 then
+            r = 50; g = 255; b = 0 -- Lime Green
+        elseif colorIndex < 5 then
+            r = 0; g = 255; b = 100 -- Hijau Cerah
+        elseif colorIndex < 6 then
+            r = 0; g = 255; b = 255 -- Cyan
+        elseif colorIndex < 7 then
+            r = 0; g = 100; b = 255 -- Biru Cerah
+        elseif colorIndex < 8 then
+            r = 50; g = 50; b = 255 -- Biru Dongker
+        elseif colorIndex < 9 then
+            r = 200; g = 0; b = 255 -- Ungu
+        elseif colorIndex < 10 then
+            r = 255; g = 0; b = 255 -- Magenta
+        elseif colorIndex < 11 then
+            r = 255; g = 100; b = 200 -- Pink Cerah
+        else
+            r = 255; g = 255; b = 255 -- Putih Cemerlang
+        end
+        
+        currentColor = Color3.fromRGB(r, g, b)
+        
+        -- Apply warna ke semua light stick
+        for i, effect in pairs(sprintEffects) do
+            if effect.stick and effect.stick.Parent then
+                effect.stick.Color = currentColor
+                effect.light.Color = currentColor
+                
+                -- Efek pulsing pada transparency dan brightness
+                local pulse = math.sin(time * 8) * 0.15 + 0.2
+                effect.stick.Transparency = pulse
+                effect.light.Brightness = 2 + math.sin(time * 8) * 0.5
+            end
+        end
+    end
+end)
+
+-- Handle respawn - update character reference
 player.CharacterAdded:Connect(function(newCharacter)
     character = newCharacter
     humanoid = character:WaitForChild("Humanoid")
     rootPart = character:WaitForChild("HumanoidRootPart")
+    sprintEffects = {}
     
     -- Terapkan sprint state ke character baru
     if isSprinting then
         humanoid.WalkSpeed = sprintSpeed
+        createHandLightSticks()
     else
         humanoid.WalkSpeed = normalSpeed
     end
