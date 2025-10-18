@@ -13,88 +13,253 @@ local sprintSpeed = normalSpeed * 2 -- Kecepatan lari (2x lipat)
 local sprintEffects = {} -- Untuk menyimpan light stick di tangan
 local currentColor = Color3.fromRGB(255, 0, 0) -- Warna saat ini
 
+-- Deteksi Platform (Mobile atau PC)
+local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+local isPC = not isMobile
+
 -- Buat GUI
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "SprintGui"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
--- Button Toggle (Sangat kecil dan compact)
-local toggleButton = Instance.new("TextButton")
-toggleButton.Name = "SprintToggle"
-toggleButton.Size = UDim2.new(0, 28, 0, 28)
-toggleButton.Position = UDim2.new(1, -40, 0.5, -70) -- Posisi sedikit ke atas
-toggleButton.BackgroundColor3 = Color3.fromRGB(100, 200, 255)
-toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleButton.TextSize = 16
-toggleButton.Text = "▶"
-toggleButton.Font = Enum.Font.GothamBold
-toggleButton.BorderSizePixel = 0
-toggleButton.Visible = true
-toggleButton.Parent = screenGui
+-- ==================== TOGGLE BUTTON PC ====================
+local toggleButtonPC
+if isPC then
+    toggleButtonPC = Instance.new("TextButton")
+    toggleButtonPC.Name = "SprintTogglePC"
+    toggleButtonPC.Size = UDim2.new(0, 30, 0, 30)
+    toggleButtonPC.Position = UDim2.new(1, -40, 0.5, -90)
+    toggleButtonPC.BackgroundColor3 = Color3.fromRGB(100, 200, 255)
+    toggleButtonPC.TextColor3 = Color3.fromRGB(255, 255, 255)
+    toggleButtonPC.TextSize = 16
+    toggleButtonPC.Text = "▶"
+    toggleButtonPC.Font = Enum.Font.GothamBold
+    toggleButtonPC.BorderSizePixel = 0
+    toggleButtonPC.Visible = true
+    toggleButtonPC.Parent = screenGui
 
--- Shadow effect
-local shadow = Instance.new("TextButton")
-shadow.Name = "Shadow"
-shadow.Size = UDim2.new(1, 4, 1, 4)
-shadow.Position = UDim2.new(0, 2, 0, 2)
-shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-shadow.TextTransparency = 1
-shadow.BorderSizePixel = 0
-shadow.ZIndex = 0
-shadow.Parent = toggleButton
+    -- Shadow effect PC
+    local shadowPC = Instance.new("TextButton")
+    shadowPC.Name = "Shadow"
+    shadowPC.Size = UDim2.new(1, 4, 1, 4)
+    shadowPC.Position = UDim2.new(0, 2, 0, 2)
+    shadowPC.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    shadowPC.TextTransparency = 1
+    shadowPC.BorderSizePixel = 0
+    shadowPC.ZIndex = 0
+    shadowPC.Parent = toggleButtonPC
 
-local shadowCorner = Instance.new("UICorner")
-shadowCorner.CornerRadius = UDim.new(0, 15)
-shadowCorner.Parent = shadow
+    local shadowCornerPC = Instance.new("UICorner")
+    shadowCornerPC.CornerRadius = UDim.new(0, 15)
+    shadowCornerPC.Parent = shadowPC
 
--- UICorner untuk button yang rounded
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 15)
-corner.Parent = toggleButton
+    -- UICorner untuk button PC
+    local cornerPC = Instance.new("UICorner")
+    cornerPC.CornerRadius = UDim.new(0, 15)
+    cornerPC.Parent = toggleButtonPC
 
--- UIStroke untuk border menarik
-local stroke = Instance.new("UIStroke")
-stroke.Color = Color3.fromRGB(200, 230, 255)
-stroke.Thickness = 3
-stroke.Parent = toggleButton
+    -- UIStroke untuk border PC
+    local strokePC = Instance.new("UIStroke")
+    strokePC.Color = Color3.fromRGB(200, 230, 255)
+    strokePC.Thickness = 3
+    strokePC.Parent = toggleButtonPC
 
--- Status Label di bawah button
-local statusLabel = Instance.new("TextLabel")
-statusLabel.Name = "StatusLabel"
-statusLabel.Size = UDim2.new(0, 70, 0, 18)
-statusLabel.Position = UDim2.new(1, -62, 0.5, -40) -- Mengikuti posisi button
-statusLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-statusLabel.BackgroundTransparency = 0.3
-statusLabel.TextColor3 = Color3.fromRGB(100, 200, 255)
-statusLabel.TextSize = 12
-statusLabel.Font = Enum.Font.GothamBold
-statusLabel.Text = "WALK"
-statusLabel.BorderSizePixel = 0
-statusLabel.Parent = screenGui
+    -- Status Label PC
+    local statusLabelPC = Instance.new("TextLabel")
+    statusLabelPC.Name = "StatusLabelPC"
+    statusLabelPC.Size = UDim2.new(0, 70, 0, 18)
+    statusLabelPC.Position = UDim2.new(1, -62, 0.5, -60)
+    statusLabelPC.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    statusLabelPC.BackgroundTransparency = 0.3
+    statusLabelPC.TextColor3 = Color3.fromRGB(100, 200, 255)
+    statusLabelPC.TextSize = 12
+    statusLabelPC.Font = Enum.Font.GothamBold
+    statusLabelPC.Text = "WALK"
+    statusLabelPC.BorderSizePixel = 0
+    statusLabelPC.Parent = screenGui
 
-local statusCorner = Instance.new("UICorner")
-statusCorner.CornerRadius = UDim.new(0, 8)
-statusCorner.Parent = statusLabel
+    local statusCornerPC = Instance.new("UICorner")
+    statusCornerPC.CornerRadius = UDim.new(0, 8)
+    statusCornerPC.Parent = statusLabelPC
 
--- Fungsi untuk update UI
-local function updateButtonUI()
-    if isSprinting then
-        -- Warna dan efek saat sedang lari
-        toggleButton.BackgroundColor3 = Color3.fromRGB(255, 100, 150)
-        stroke.Color = Color3.fromRGB(255, 200, 200)
-        toggleButton.Text = "⏸"
-        statusLabel.Text = "RUNNING"
-        statusLabel.TextColor3 = Color3.fromRGB(255, 100, 150)
-    else
-        -- Warna dan efek saat tidak lari
-        toggleButton.BackgroundColor3 = Color3.fromRGB(100, 200, 255)
-        stroke.Color = Color3.fromRGB(200, 230, 255)
-        toggleButton.Text = "▶"
-        statusLabel.Text = "WALK"
-        statusLabel.TextColor3 = Color3.fromRGB(100, 200, 255)
+    -- Fungsi update UI PC
+    local function updateButtonUIPC()
+        if isSprinting then
+            toggleButtonPC.BackgroundColor3 = Color3.fromRGB(255, 100, 150)
+            strokePC.Color = Color3.fromRGB(255, 200, 200)
+            toggleButtonPC.Text = "⏸"
+            statusLabelPC.Text = "RUNNING"
+            statusLabelPC.TextColor3 = Color3.fromRGB(255, 100, 150)
+        else
+            toggleButtonPC.BackgroundColor3 = Color3.fromRGB(100, 200, 255)
+            strokePC.Color = Color3.fromRGB(200, 230, 255)
+            toggleButtonPC.Text = "▶"
+            statusLabelPC.Text = "WALK"
+            statusLabelPC.TextColor3 = Color3.fromRGB(100, 200, 255)
+        end
     end
+
+    -- Button click untuk toggle PC
+    toggleButtonPC.MouseButton1Click:Connect(function()
+        isSprinting = not isSprinting
+        setSprinting(isSprinting)
+        
+        -- Animasi rotasi saat diklik
+        local rotationTween = game:GetService("TweenService"):Create(
+            toggleButtonPC,
+            TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+            {Rotation = toggleButtonPC.Rotation + 360}
+        )
+        rotationTween:Play()
+    end)
+
+    -- Hover effect untuk button PC
+    toggleButtonPC.MouseEnter:Connect(function()
+        local strokeTween = game:GetService("TweenService"):Create(
+            strokePC,
+            TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {Thickness = 5}
+        )
+        strokeTween:Play()
+    end)
+
+    toggleButtonPC.MouseLeave:Connect(function()
+        local strokeTween = game:GetService("TweenService"):Create(
+            strokePC,
+            TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {Thickness = 3}
+        )
+        strokeTween:Play()
+    end)
+
+    -- Store reference untuk update UI
+    _G.updateButtonUIPC = updateButtonUIPC
 end
+
+-- ==================== TOGGLE BUTTON MOBILE ====================
+local toggleButtonMobile
+if isMobile then
+    toggleButtonMobile = Instance.new("TextButton")
+    toggleButtonMobile.Name = "SprintToggleMobile"
+    toggleButtonMobile.Size = UDim2.new(0, 28, 0, 28) -- Ukuran lebih compact
+    toggleButtonMobile.Position = UDim2.new(1, -38, 0.5, -70) -- Kanan tengah sedikit ke bawah
+    toggleButtonMobile.BackgroundColor3 = Color3.fromRGB(100, 200, 255)
+    toggleButtonMobile.TextColor3 = Color3.fromRGB(255, 255, 255)
+    toggleButtonMobile.TextSize = 16 -- Ukuran text disesuaikan
+    toggleButtonMobile.Text = "▶"
+    toggleButtonMobile.Font = Enum.Font.GothamBold
+    toggleButtonMobile.BorderSizePixel = 0
+    toggleButtonMobile.Visible = true
+    toggleButtonMobile.Parent = screenGui
+
+    -- Shadow effect Mobile
+    local shadowMobile = Instance.new("TextButton")
+    shadowMobile.Name = "Shadow"
+    shadowMobile.Size = UDim2.new(1, 4, 1, 4)
+    shadowMobile.Position = UDim2.new(0, 2, 0, 2)
+    shadowMobile.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    shadowMobile.TextTransparency = 1
+    shadowMobile.BorderSizePixel = 0
+    shadowMobile.ZIndex = 0
+    shadowMobile.Parent = toggleButtonMobile
+
+    local shadowCornerMobile = Instance.new("UICorner")
+    shadowCornerMobile.CornerRadius = UDim.new(0, 15) -- Disesuaikan dengan ukuran button
+    shadowCornerMobile.Parent = shadowMobile
+
+    -- UICorner untuk button Mobile
+    local cornerMobile = Instance.new("UICorner")
+    cornerMobile.CornerRadius = UDim.new(0, 15)
+    cornerMobile.Parent = toggleButtonMobile
+
+    -- UIStroke untuk border Mobile
+    local strokeMobile = Instance.new("UIStroke")
+    strokeMobile.Color = Color3.fromRGB(200, 230, 255)
+    strokeMobile.Thickness = 3
+    strokeMobile.Parent = toggleButtonMobile
+
+    -- Status Label Mobile
+    local statusLabelMobile = Instance.new("TextLabel")
+    statusLabelMobile.Name = "StatusLabelMobile"
+    statusLabelMobile.Size = UDim2.new(0, 60, 0, 18) -- Ukuran compact
+    statusLabelMobile.Position = UDim2.new(1, -57, 0.5, -40) -- Di bawah button
+    statusLabelMobile.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    statusLabelMobile.BackgroundTransparency = 0.3
+    statusLabelMobile.TextColor3 = Color3.fromRGB(100, 200, 255)
+    statusLabelMobile.TextSize = 11 -- Ukuran text compact
+    statusLabelMobile.Font = Enum.Font.GothamBold
+    statusLabelMobile.Text = "WALK"
+    statusLabelMobile.BorderSizePixel = 0
+    statusLabelMobile.Parent = screenGui
+
+    local statusCornerMobile = Instance.new("UICorner")
+    statusCornerMobile.CornerRadius = UDim.new(0, 8)
+    statusCornerMobile.Parent = statusLabelMobile
+
+    -- Fungsi update UI Mobile
+    local function updateButtonUIMobile()
+        if isSprinting then
+            toggleButtonMobile.BackgroundColor3 = Color3.fromRGB(255, 100, 150)
+            strokeMobile.Color = Color3.fromRGB(255, 200, 200)
+            toggleButtonMobile.Text = "⏸"
+            statusLabelMobile.Text = "RUNNING"
+            statusLabelMobile.TextColor3 = Color3.fromRGB(255, 100, 150)
+        else
+            toggleButtonMobile.BackgroundColor3 = Color3.fromRGB(100, 200, 255)
+            strokeMobile.Color = Color3.fromRGB(200, 230, 255)
+            toggleButtonMobile.Text = "▶"
+            statusLabelMobile.Text = "WALK"
+            statusLabelMobile.TextColor3 = Color3.fromRGB(100, 200, 255)
+        end
+    end
+
+    -- Button click untuk toggle Mobile
+    toggleButtonMobile.MouseButton1Click:Connect(function()
+        isSprinting = not isSprinting
+        setSprinting(isSprinting)
+        
+        -- Animasi scale saat diklik
+        local scaleTween = game:GetService("TweenService"):Create(
+            toggleButtonMobile,
+            TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+            {Size = UDim2.new(0, 32, 0, 32)} -- Scale disesuaikan
+        )
+        scaleTween:Play()
+        scaleTween.Completed:Connect(function()
+            local scaleBackTween = game:GetService("TweenService"):Create(
+                toggleButtonMobile,
+                TweenInfo.new(0.1, Enum.EasingStyle.Back, Enum.EasingDirection.In),
+                {Size = UDim2.new(0, 28, 0, 28)} -- Kembali ke ukuran compact
+            )
+            scaleBackTween:Play()
+        end)
+    end)
+
+    -- Hover effect untuk button Mobile
+    toggleButtonMobile.MouseEnter:Connect(function()
+        local strokeTween = game:GetService("TweenService"):Create(
+            strokeMobile,
+            TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {Thickness = 5}
+        )
+        strokeTween:Play()
+    end)
+
+    toggleButtonMobile.MouseLeave:Connect(function()
+        local strokeTween = game:GetService("TweenService"):Create(
+            strokeMobile,
+            TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {Thickness = 3}
+        )
+        strokeTween:Play()
+    end)
+
+    -- Store reference untuk update UI
+    _G.updateButtonUIMobile = updateButtonUIMobile
+end
+
+-- ==================== CORE FUNCTIONS ====================
 
 -- Fungsi untuk membuat light stick di tangan
 local function createHandLightSticks()
@@ -128,11 +293,10 @@ local function createHandLightSticks()
     for _, hand in pairs(hands) do
         local lightStick = Instance.new("Part")
         lightStick.Name = "LightStick"
-        lightStick.Shape = Enum.PartType.Cylinder -- Ubah menjadi Cylinder
+        lightStick.Shape = Enum.PartType.Cylinder
         lightStick.Material = Enum.Material.Neon
-        lightStick.Size = Vector3.new(1.5, 0.2, 0.2) -- Ukuran untuk cylinder (panjang di sumbu X)
+        lightStick.Size = Vector3.new(1.5, 0.2, 0.2)
         lightStick.CanCollide = false
-        -- Rotasi untuk posisi vertical (berdiri tegak di tangan)
         lightStick.CFrame = hand.CFrame * CFrame.Angles(0, math.rad(90), 0)
         lightStick.TopSurface = Enum.SurfaceType.Smooth
         lightStick.BottomSurface = Enum.SurfaceType.Smooth
@@ -170,7 +334,7 @@ local function removeHandLightSticks()
 end
 
 -- Fungsi Sprint
-local function setSprinting(value)
+function setSprinting(value)
     isSprinting = value
     
     if isSprinting then
@@ -181,42 +345,19 @@ local function setSprinting(value)
         removeHandLightSticks()
     end
     
-    updateButtonUI()
+    -- Update UI sesuai platform
+    if isPC and _G.updateButtonUIPC then
+        _G.updateButtonUIPC()
+    elseif isMobile and _G.updateButtonUIMobile then
+        _G.updateButtonUIMobile()
+    end
 end
 
--- Button click untuk toggle
-toggleButton.MouseButton1Click:Connect(function()
-    setSprinting(not isSprinting)
-    
-    -- Animasi rotasi saat diklik
-    local rotationTween = game:GetService("TweenService"):Create(
-        toggleButton,
-        TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-        {Rotation = toggleButton.Rotation + 360}
-    )
-    rotationTween:Play()
-end)
+-- ==================== INPUT HANDLING ====================
 
--- Hover effect untuk button
-toggleButton.MouseEnter:Connect(function()
-    -- Animasi glow saat hover
-    local strokeTween = game:GetService("TweenService"):Create(
-        stroke,
-        TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-        {Thickness = 5}
-    )
-    strokeTween:Play()
-end)
+-- Keyboard input removed - only toggle button controls
 
-toggleButton.MouseLeave:Connect(function()
-    -- Animasi glow kembali normal
-    local strokeTween = game:GetService("TweenService"):Create(
-        stroke,
-        TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-        {Thickness = 3}
-    )
-    strokeTween:Play()
-end)
+-- ==================== EFFECTS ====================
 
 -- Update warna light stick saat sprint
 RunService.Heartbeat:Connect(function()
@@ -269,6 +410,8 @@ RunService.Heartbeat:Connect(function()
         end
     end
 end)
+
+-- ==================== RESPAWN HANDLING ====================
 
 -- Handle respawn - update character reference
 player.CharacterAdded:Connect(function(newCharacter)
