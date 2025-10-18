@@ -69,7 +69,7 @@ statusLabel.BackgroundTransparency = 0.3
 statusLabel.TextColor3 = Color3.fromRGB(100, 200, 255)
 statusLabel.TextSize = 12
 statusLabel.Font = Enum.Font.GothamBold
-statusLabel.Text = "READY"
+statusLabel.Text = "WALK"
 statusLabel.BorderSizePixel = 0
 statusLabel.Parent = screenGui
 
@@ -91,7 +91,7 @@ local function updateButtonUI()
         toggleButton.BackgroundColor3 = Color3.fromRGB(100, 200, 255)
         stroke.Color = Color3.fromRGB(200, 230, 255)
         toggleButton.Text = "▶"
-        statusLabel.Text = "READY"
+        statusLabel.Text = "WALK"
         statusLabel.TextColor3 = Color3.fromRGB(100, 200, 255)
     end
 end
@@ -128,11 +128,12 @@ local function createHandLightSticks()
     for _, hand in pairs(hands) do
         local lightStick = Instance.new("Part")
         lightStick.Name = "LightStick"
-        lightStick.Shape = Enum.PartType.Block
+        lightStick.Shape = Enum.PartType.Cylinder -- Ubah menjadi Cylinder
         lightStick.Material = Enum.Material.Neon
-        lightStick.Size = Vector3.new(0.2, 0.2, 1.5) -- Light stick panjang berbentuk balok
+        lightStick.Size = Vector3.new(1.5, 0.2, 0.2) -- Ukuran untuk cylinder (panjang di sumbu X)
         lightStick.CanCollide = false
-        lightStick.CFrame = hand.CFrame
+        -- Rotasi untuk posisi vertical (berdiri tegak di tangan)
+        lightStick.CFrame = hand.CFrame * CFrame.Angles(0, math.rad(90), 0)
         lightStick.TopSurface = Enum.SurfaceType.Smooth
         lightStick.BottomSurface = Enum.SurfaceType.Smooth
         lightStick.Parent = hand
