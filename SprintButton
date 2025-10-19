@@ -142,11 +142,11 @@ local toggleButtonMobile
 if isMobile then
     toggleButtonMobile = Instance.new("TextButton")
     toggleButtonMobile.Name = "SprintToggleMobile"
-    toggleButtonMobile.Size = UDim2.new(0, 28, 0, 28) -- Ukuran lebih compact
-    toggleButtonMobile.Position = UDim2.new(1, -38, 0.5, -70) -- Kanan tengah sedikit ke bawah
+    toggleButtonMobile.Size = UDim2.new(0, 28, 0, 28)
+    toggleButtonMobile.Position = UDim2.new(1, -38, 0.5, -70)
     toggleButtonMobile.BackgroundColor3 = Color3.fromRGB(100, 200, 255)
     toggleButtonMobile.TextColor3 = Color3.fromRGB(255, 255, 255)
-    toggleButtonMobile.TextSize = 16 -- Ukuran text disesuaikan
+    toggleButtonMobile.TextSize = 16
     toggleButtonMobile.Text = "▶"
     toggleButtonMobile.Font = Enum.Font.GothamBold
     toggleButtonMobile.BorderSizePixel = 0
@@ -165,7 +165,7 @@ if isMobile then
     shadowMobile.Parent = toggleButtonMobile
 
     local shadowCornerMobile = Instance.new("UICorner")
-    shadowCornerMobile.CornerRadius = UDim.new(0, 15) -- Disesuaikan dengan ukuran button
+    shadowCornerMobile.CornerRadius = UDim.new(0, 15)
     shadowCornerMobile.Parent = shadowMobile
 
     -- UICorner untuk button Mobile
@@ -182,12 +182,12 @@ if isMobile then
     -- Status Label Mobile
     local statusLabelMobile = Instance.new("TextLabel")
     statusLabelMobile.Name = "StatusLabelMobile"
-    statusLabelMobile.Size = UDim2.new(0, 60, 0, 18) -- Ukuran compact
-    statusLabelMobile.Position = UDim2.new(1, -57, 0.5, -40) -- Di bawah button
+    statusLabelMobile.Size = UDim2.new(0, 60, 0, 18)
+    statusLabelMobile.Position = UDim2.new(1, -57, 0.5, -40)
     statusLabelMobile.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     statusLabelMobile.BackgroundTransparency = 0.3
     statusLabelMobile.TextColor3 = Color3.fromRGB(100, 200, 255)
-    statusLabelMobile.TextSize = 11 -- Ukuran text compact
+    statusLabelMobile.TextSize = 11
     statusLabelMobile.Font = Enum.Font.GothamBold
     statusLabelMobile.Text = "WALK"
     statusLabelMobile.BorderSizePixel = 0
@@ -223,14 +223,14 @@ if isMobile then
         local scaleTween = game:GetService("TweenService"):Create(
             toggleButtonMobile,
             TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-            {Size = UDim2.new(0, 32, 0, 32)} -- Scale disesuaikan
+            {Size = UDim2.new(0, 32, 0, 32)}
         )
         scaleTween:Play()
         scaleTween.Completed:Connect(function()
             local scaleBackTween = game:GetService("TweenService"):Create(
                 toggleButtonMobile,
                 TweenInfo.new(0.1, Enum.EasingStyle.Back, Enum.EasingDirection.In),
-                {Size = UDim2.new(0, 28, 0, 28)} -- Kembali ke ukuran compact
+                {Size = UDim2.new(0, 28, 0, 28)}
             )
             scaleBackTween:Play()
         end)
@@ -261,7 +261,7 @@ end
 
 -- ==================== CORE FUNCTIONS ====================
 
--- Fungsi untuk membuat light stick di tangan
+-- Fungsi untuk membuat light stick dengan trail effect
 local function createHandLightSticks()
     -- Hapus efek lama
     for _, effect in pairs(sprintEffects) do
@@ -312,14 +312,40 @@ local function createHandLightSticks()
         weld.Part1 = lightStick
         weld.Parent = lightStick
         
-        -- PointLight untuk efek cahaya tambahan
-        local light = Instance.new("PointLight")
-        light.Brightness = 2
-        light.Range = 10
-        light.Color = Color3.fromRGB(255, 0, 0)
-        light.Parent = lightStick
+        -- PointLight untuk efek cahaya tambahan (DISABLED)
+        -- local light = Instance.new("PointLight")
+        -- light.Brightness = 2
+        -- light.Range = 10
+        -- light.Color = Color3.fromRGB(255, 0, 0)
+        -- light.Parent = lightStick
+        local light = nil
         
-        table.insert(sprintEffects, {stick = lightStick, light = light})
+        -- Buat Attachment untuk Trail
+        local attachment0 = Instance.new("Attachment")
+        attachment0.Parent = lightStick
+        attachment0.Position = Vector3.new(-0.75, 0, 0)
+        
+        local attachment1 = Instance.new("Attachment")
+        attachment1.Parent = lightStick
+        attachment1.Position = Vector3.new(0.75, 0, 0)
+        
+        -- Buat Trail effect (cahaya memanjang)
+        local trail = Instance.new("Trail")
+        trail.Attachment0 = attachment0
+        trail.Attachment1 = attachment1
+        trail.Lifetime = 0.5 -- Durasi jejak cahaya
+        trail.MinLength = 0
+        trail.MaxLength = 0
+        trail.Color = ColorSequence.new(Color3.fromRGB(255, 0, 0))
+        trail.Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 0),
+            NumberSequenceKeypoint.new(0.5, 0.3),
+            NumberSequenceKeypoint.new(1, 1)
+        })
+        trail.Parent = lightStick
+        
+        table.insert(sprintEffects, {stick = lightStick, light = light, trail = trail, 
+                                     attachment0 = attachment0, attachment1 = attachment1})
     end
 end
 
@@ -396,16 +422,19 @@ RunService.Heartbeat:Connect(function()
         
         currentColor = Color3.fromRGB(r, g, b)
         
-        -- Apply warna ke semua light stick
+        -- Apply warna ke semua light stick dan trail
         for i, effect in pairs(sprintEffects) do
             if effect.stick and effect.stick.Parent then
                 effect.stick.Color = currentColor
-                effect.light.Color = currentColor
                 
-                -- Efek pulsing pada transparency dan brightness
+                -- Update trail color
+                if effect.trail then
+                    effect.trail.Color = ColorSequence.new(currentColor)
+                end
+                
+                -- Efek pulsing pada transparency
                 local pulse = math.sin(time * 8) * 0.15 + 0.2
                 effect.stick.Transparency = pulse
-                effect.light.Brightness = 2 + math.sin(time * 8) * 0.5
             end
         end
     end
