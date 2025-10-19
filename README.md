@@ -83,13 +83,6 @@ Customize the light stick dimensions:
 lightStick.Size = Vector3.new(1.5, 0.2, 0.2)  -- Length, Height, Width
 ```
 
-## File Structure
-
-```
-Sprint-System/
-├── sprint-system.lua       # Main script
-└── README.md              # This file
-```
 
 ## Technical Details
 
