@@ -1,320 +1,242 @@
-# 🏃‍♂️ Roblox Sprint Script with Rainbow Light Sticks
+# Sprint System with Light Trail Effects
 
-A feature-rich sprint system for Roblox with stunning rainbow light stick effects and dual platform support (PC & Mobile).
+A dynamic Roblox sprint system with stunning visual effects featuring rainbow-colored light trails on glowing sticks held in player's hands.
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
-![Platform](https://img.shields.io/badge/platform-Roblox-red.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
+## Features
 
-## ✨ Features
+✨ **Visual Effects**
+- Rainbow-colored neon light sticks held in both hands during sprint
+- Smooth light trail effects following stick movements
+- Pulsing transparency animation for dynamic appearance
+- Clean visual design without environmental light pollution
 
-### 🎮 Dual Platform Support
-- **PC**: Toggle button (30x30px) - right side, center
-- **Mobile**: Compact toggle button (28x28px) - right side, center
+🎮 **Platform Support**
+- PC and Mobile compatibility
+- Dedicated UI buttons for each platform
+- Responsive toggle button with smooth animations
+- Platform-specific input handling
 
-### 🌈 Visual Effects
-- Rainbow light sticks appear in both hands when sprinting
-- 12 vibrant colors cycling smoothly (Red → Orange → Yellow → Lime → Green → Cyan → Blue → Dark Blue → Purple → Magenta → Pink → White)
-- Pulsing transparency and brightness effects
-- Neon material with dynamic PointLight
+⚡ **Performance**
+- Optimized rendering with heartbeat-based updates
+- Proper cleanup on respawn
+- Lightweight trail system
+- No PointLight for better performance
 
-### 🎨 UI Elements
-- Elegant toggle buttons with shadow effects
-- Status labels showing "WALK" or "RUNNING"
-- Smooth animations on click and hover
-- Color-coded states (Blue = Walk, Pink = Running)
-- Modern rounded corners with border strokes
+🎨 **Customization**
+- Rainbow color cycling through 12 vibrant colors
+- Adjustable sprint speed multiplier
+- Configurable trail lifetime and effects
+- Dynamic UI with status labels
 
-### ⚡ Performance
-- Speed multiplier: 2x (16 → 32 walkspeed)
-- Optimized with RunService.Heartbeat
-- Persistent across character respawns
-- Lightweight and lag-free
+## Installation
 
-## 📦 Installation
+1. Copy the main script to your game
+2. Place it in `ServerScriptService` or `StarterPlayer/StarterPlayerScripts`
+3. The script automatically handles GUI creation and character management
 
-### Method 1: Direct Copy
-1. Open Roblox Studio
-2. Navigate to `StarterPlayer` > `StarterCharacterScripts`
-3. Create a new `LocalScript`
-4. Copy the entire script and paste it
-5. Save and test your game!
+## Controls
 
-### Method 2: Insert from File
-1. Download the `SprintScript.lua` file
-2. In Roblox Studio, right-click on `StarterCharacterScripts`
-3. Select "Insert from File"
-4. Choose the downloaded script
-5. Done!
+### PC
+- Click the **▶ Play Button** (top-right corner) to toggle sprint
+- Button shows current status: "WALK" or "RUNNING"
+- Visual feedback with color changes and animations
+- Smooth rotation animation on button click
 
-## 🎯 Usage
+### Mobile
+- Tap the **▶ Play Button** (compact version, top-right corner)
+- Same functionality as PC with optimized touch feedback
+- Smooth scale animation on button tap
 
-### Controls (Both PC & Mobile)
-- **Click Toggle Button**: Toggle sprint mode on/off
-- Button automatically appears on the right side of the screen
-- Status label shows current state (WALK/RUNNING)
+## Configuration
 
-### Visual Feedback
-- **Blue Button + "WALK" label**: Normal walking speed
-- **Pink Button + "RUNNING" label**: Sprint mode active with rainbow light sticks
+Edit these values in the script to customize behavior:
 
-## 🎨 Customization
-
-### Speed Settings
-Adjust the speed values at the top of the script:
 ```lua
-local normalSpeed = 16  -- Default walk speed
-local sprintSpeed = normalSpeed * 2  -- Sprint multiplier (change multiplier as needed)
+local normalSpeed = 16              -- Default walking speed
+local sprintSpeed = normalSpeed * 2 -- Sprint speed (2x multiplier)
 ```
 
-### Rainbow Colors
-The script cycles through 12 colors. To modify colors, edit the `RunService.Heartbeat` section:
+### Trail Customization
+
+Modify trail properties in the `createHandLightSticks()` function:
+
 ```lua
-if colorIndex < 1 then
-    r = 255; g = 0; b = 0 -- Red (change RGB values)
-elseif colorIndex < 2 then
-    r = 255; g = 165; b = 0 -- Orange
--- ... modify other colors
-end
+trail.Lifetime = 0.5        -- Duration of light trail (increase for longer trails)
+trail.MaxLength = 0         -- Max trail length (0 = unlimited)
 ```
 
-### UI Position
+### Color Cycling
 
-#### PC Button Position
+The light stick cycles through 12 colors in sequence:
+- Red → Orange → Yellow → Lime Green → Green → Cyan → Light Blue → Dark Blue → Purple → Magenta → Pink → White
+
+Adjust the speed by modifying this line:
 ```lua
-toggleButtonPC.Position = UDim2.new(1, -40, 0.5, -90)
--- Format: UDim2.new(X_Scale, X_Offset, Y_Scale, Y_Offset)
--- Adjust Y_Offset to move up/down
+local time = tick() * 3     -- Change 3 to increase/decrease cycle speed
 ```
 
-#### Mobile Button Position
+### Light Stick Size
+
+Customize the light stick dimensions:
+
 ```lua
-toggleButtonMobile.Position = UDim2.new(1, -38, 0.5, -70)
--- Adjust Y_Offset to move up/down
+lightStick.Size = Vector3.new(1.5, 0.2, 0.2)  -- Length, Height, Width
 ```
 
-### Button Size
+## File Structure
+
+```
+Sprint-System/
+├── sprint-system.lua       # Main script
+└── README.md              # This file
+```
+
+## Technical Details
+
+### Components
+
+- **Light Stick**: Neon cylinder part welded to player's hand
+- **Trail Effect**: Uses Roblox Trail object for visual feedback with smooth fade
+- **Attachment Points**: Define trail start and end positions on the stick
+- **Weld Constraint**: Keeps light stick attached to player's hand
+
+### How It Works
+
+1. When sprint is activated, two light sticks are created (one per hand)
+2. Trail objects connect attachment points to create glowing trails
+3. Colors cycle through rainbow spectrum at fixed intervals
+4. Transparency pulses for dynamic effect
+5. On respawn, old effects are cleaned up automatically
+6. UI buttons toggle sprint state and update visual indicators
+
+### Color Animation
+
+The system uses a time-based sine wave for smooth pulsing:
 ```lua
--- PC Button
-toggleButtonPC.Size = UDim2.new(0, 30, 0, 30)
-
--- Mobile Button
-toggleButtonMobile.Size = UDim2.new(0, 28, 0, 28)
+local pulse = math.sin(time * 8) * 0.15 + 0.2
+effect.stick.Transparency = pulse
 ```
 
-### Light Stick Properties
+## Performance Tips
+
+- Trail lifetime is set to 0.5 seconds for optimal performance
+- Adjust if experiencing frame drops on lower-end devices
+- Reduced complexity by removing PointLight
+- Efficient attachment-based trail system
+
+## Requirements
+
+- Roblox Studio or Roblox game environment
+- Character model with RightHand and LeftHand parts
+- Modern Roblox engine with Trail support
+
+## Troubleshooting
+
+**Light sticks not appearing?**
+- Ensure character has RightHand and LeftHand parts
+- Check script is running in correct service
+- Verify part names exactly match (case-sensitive)
+
+**Trail not showing?**
+- Verify Attachment objects are created properly
+- Check Trail Lifetime is greater than 0
+- Ensure parts are not filtered or hidden
+
+**Button not responding?**
+- Verify UserInputService is accessible
+- Check PlayerGui is available in player
+- Ensure script has proper permissions
+
+**Performance issues?**
+- Reduce Trail.Lifetime value
+- Lower color cycling speed (reduce tick() multiplier)
+- Increase update frequency threshold
+
+## Customization Examples
+
+### Increase Trail Length
 ```lua
--- In createHandLightSticks() function
-lightStick.Size = Vector3.new(1.5, 0.2, 0.2) -- Length, Width, Height
-lightStick.Transparency = 0.1 -- 0 = fully opaque, 1 = fully transparent
-
-light.Brightness = 2 -- Light intensity
-light.Range = 10 -- Light reach distance
+trail.Lifetime = 1.0  -- Double the trail duration
 ```
 
-## 🔧 Technical Details
-
-### Services Used
-- `Players` - Player and character management
-- `UserInputService` - Platform detection and input handling
-- `RunService` - Frame-by-frame updates for effects
-- `TweenService` - Smooth UI animations
-
-### Key Components
-- **Light Sticks**: Cylinder-shaped parts with Neon material
-- **WeldConstraint**: Attaches light sticks to player's hands
-- **PointLight**: Creates glowing effect around light sticks
-- **ScreenGui**: UI container (ResetOnSpawn = false for persistence)
-
-### Character Compatibility
-- ✅ Supports both R6 and R15 character rigs
-- ✅ Auto-detects hand parts (RightHand, LeftHand, RightLowerArm, LeftLowerArm)
-- ✅ Handles character respawn automatically
-- ✅ Maintains sprint state after respawn
-
-### Platform Detection
+### Change Sprint Speed
 ```lua
-local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
-local isPC = not isMobile
-```
-The script automatically detects whether the player is on mobile or PC and shows the appropriate UI.
-
-## 🐛 Troubleshooting
-
-### Light sticks don't appear
-**Possible causes:**
-- Character doesn't have recognizable hand parts
-- Script is not placed in `StarterCharacterScripts`
-- Character hasn't fully loaded yet
-
-**Solutions:**
-- Verify your character model has hand parts
-- Move the script to the correct location
-- Wait a few seconds after spawning
-
-### Toggle button not visible
-**Possible causes:**
-- Another GUI is overlapping the button
-- Screen size is too small
-- UI was accidentally disabled
-
-**Solutions:**
-- Check ZIndex of other GUIs
-- Adjust button position for your screen
-- Look in `PlayerGui > SprintGui` to verify it exists
-
-### Sprint doesn't work
-**Possible causes:**
-- Humanoid WalkSpeed is being overridden by another script
-- Character died/respawned incorrectly
-
-**Solutions:**
-- Check for conflicting scripts
-- Try respawning your character
-- Verify the script is running (check Output for errors)
-
-### Button position is off-screen
-**Solutions:**
-- Adjust the position values in the script
-- Use UDim2.new() with scale values instead of offset for responsive positioning
-
-## 📝 Script Structure
-
-```
-├── Services & Variables
-│   ├── Player & Character references
-│   ├── Speed settings
-│   └── Platform detection
-│
-├── GUI Creation
-│   ├── PC UI
-│   │   ├── Toggle Button (30x30)
-│   │   ├── Shadow effect
-│   │   ├── Status Label
-│   │   └── Animations
-│   │
-│   └── Mobile UI
-│       ├── Toggle Button (28x28)
-│       ├── Shadow effect
-│       ├── Status Label
-│       └── Animations
-│
-├── Core Functions
-│   ├── createHandLightSticks()
-│   │   ├── Find hand parts
-│   │   ├── Create neon cylinders
-│   │   ├── Add PointLights
-│   │   └── Weld to hands
-│   │
-│   ├── removeHandLightSticks()
-│   │   └── Clean up effects
-│   │
-│   └── setSprinting(boolean)
-│       ├── Update WalkSpeed
-│       ├── Toggle light sticks
-│       └── Update UI state
-│
-├── Effects System
-│   └── Rainbow Color Cycling
-│       ├── 12 color transitions
-│       ├── Pulsing transparency
-│       └── Dynamic brightness
-│
-└── Respawn Handler
-    └── Character persistence
+local sprintSpeed = normalSpeed * 3  -- Triple speed sprint
 ```
 
-## 🎥 Features Showcase
+### Modify Light Stick Color
+```lua
+lightStick.Color = Color3.fromRGB(255, 0, 0)  -- Set initial color
+```
 
-### Sprint Effects
-- ✅ Rainbow light sticks appear instantly in both hands
-- ✅ Smooth color transitions through 12 vibrant colors
-- ✅ Pulsing brightness creates dynamic visual effect
-- ✅ 2x speed boost for faster movement
-- ✅ Effects automatically sync with sprint state
+### Adjust Trail Transparency
+```lua
+trail.Transparency = NumberSequence.new({
+    NumberSequenceKeypoint.new(0, 0),      -- Fully visible at start
+    NumberSequenceKeypoint.new(0.5, 0.5),  -- Semi-transparent in middle
+    NumberSequenceKeypoint.new(1, 1)       -- Fully transparent at end
+})
+```
 
-### UI Design
-- ✅ Compact modern buttons that don't obstruct gameplay
-- ✅ Shadow and stroke effects for depth
-- ✅ Smooth hover animations for better feedback
-- ✅ Color-coded status labels for instant state recognition
-- ✅ Platform-specific positioning (PC vs Mobile)
+## Features Comparison
 
-## 🤝 Contributing
+| Feature | Status |
+|---------|--------|
+| Rainbow Color Cycling | ✅ Enabled |
+| Light Trail Effects | ✅ Enabled |
+| Pulsing Animation | ✅ Enabled |
+| PointLight | ✖️ Disabled |
+| PC UI Button | ✅ Enabled |
+| Mobile UI Button | ✅ Enabled |
+| Sprint Speed Boost | ✅ Enabled |
+| Character Respawn Handling | ✅ Enabled |
 
-Contributions are welcome! Here's how you can help:
+## Future Enhancements
 
-1. **Report Bugs**: Open an issue with details about the problem
-2. **Suggest Features**: Share your ideas for improvements
-3. **Submit Pull Requests**: Fork, modify, and submit PRs
-4. **Improve Documentation**: Help make the README clearer
-5. **Share Examples**: Show off your customizations!
+- [ ] Sound effects during sprint
+- [ ] Different trail styles (straight, spiral, wave)
+- [ ] Customizable color schemes
+- [ ] Stamina system with cooldown
+- [ ] Glow intensity adjustment
+- [ ] Custom trail thickness options
 
-### Development Guidelines
-- Keep code clean and commented
-- Test on both PC and mobile
-- Maintain compatibility with R6 and R15
-- Follow Lua best practices
+## API Reference
 
-## 📄 License
+### Main Functions
 
-This project is licensed under the MIT License - feel free to use, modify, and distribute!
+```lua
+function setSprinting(value: boolean)
+  -- Toggle sprint state
+  -- Parameters:
+  --   value: true to start sprinting, false to stop
+```
 
-See the [LICENSE](LICENSE) file for details.
+```lua
+function createHandLightSticks()
+  -- Creates light sticks with trail effects
+  -- Called automatically when sprint is activated
+```
 
-## 👤 Author
+```lua
+function removeHandLightSticks()
+  -- Removes all light stick effects
+  -- Called automatically when sprint is deactivated
+```
 
-Created with ❤️ for the Roblox community
+## License
 
-**Want to contribute or have questions?**
-- Open an issue on GitHub
-- Share your customizations
-- Help improve the documentation
+Free to use and modify for your Roblox games.
 
-## 🌟 Support the Project
+## Support
 
-If you find this script helpful:
-- ⭐ **Star this repository** to show your support
-- 🐛 **Report issues** to help improve the script
-- 💡 **Share your ideas** for new features
-- 📢 **Tell your friends** and fellow developers
-- 🎮 **Use it in your games** and let us know!
-
-## 📚 Version History
-
-### v1.0.0 (2025-10-19)
-- ✨ Initial release
-- 🎮 Dual platform support (PC & Mobile)
-- 🌈 Rainbow light stick effects with 12 colors
-- 🎨 Modern UI with toggle buttons
-- ⚡ Optimized performance
-- 🔄 Respawn persistence
-- 📱 Responsive design for different screen sizes
-
-## 🔗 Related Projects
-
-Looking for more Roblox scripts?
-- Check out our other repositories
-- Join the Roblox developer community
-- Share your own creations!
-
-## 📞 Contact & Support
-
-**Need help?**
-- Open an issue on GitHub
-- Check the troubleshooting section
-- Review existing issues for solutions
-
-**Want to showcase your game using this script?**
-- We'd love to see it! Share in the discussions
+For issues or suggestions:
+- Ensure all parts are properly named (RightHand, LeftHand)
+- Verify script permissions in game settings
+- Test in Studio before publishing to production
+- Check console for any error messages
 
 ---
 
-**Made for Roblox Studio** | **LocalScript** | **Client-Side Only** | **Free & Open Source**
-
-### Quick Links
-- 📖 [Installation Guide](#-installation)
-- 🎯 [Usage Instructions](#-usage)
-- 🎨 [Customization Options](#-customization)
-- 🐛 [Troubleshooting](#-troubleshooting)
-- 🤝 [Contributing](#-contributing)
+**Version**: 1.1.0  
+**Last Updated**: 2025-10-20  
+**Status**: Production Ready
