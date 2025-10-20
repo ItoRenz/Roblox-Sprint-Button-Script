@@ -13,10 +13,6 @@ local sprintSpeed = normalSpeed * 2 -- Kecepatan lari (2x lipat)
 local sprintEffects = {} -- Untuk menyimpan light stick di tangan
 local currentColor = Color3.fromRGB(255, 0, 0) -- Warna saat ini
 
--- Sound Asset IDs
-local SPRINT_START_SOUND_ID = "rbxassetid://111900188409004"
-local SPRINT_STOP_SOUND_ID = "rbxassetid://120904325097533"
-
 -- Deteksi Platform (Mobile atau PC)
 local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 local isPC = not isMobile
@@ -26,52 +22,6 @@ local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "SprintGui"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
-
--- Cache untuk sound effects
-local soundCache = {
-    start = nil,
-    stop = nil
-}
-
--- Fungsi untuk memuat dan cache sound
-local function loadSoundInCache(soundType)
-    if soundCache[soundType] then return end
-    
-    local sound = Instance.new("Sound")
-    sound.Name = "SprintSound_" .. soundType
-    
-    if soundType == "start" then
-        sound.SoundId = SPRINT_START_SOUND_ID
-    elseif soundType == "stop" then
-        sound.SoundId = SPRINT_STOP_SOUND_ID
-    end
-    
-    sound.Volume = 0.5
-    sound.Parent = rootPart
-    soundCache[soundType] = sound
-end
-
--- Pre-load sounds
-loadSoundInCache("start")
-loadSoundInCache("stop")
-
--- Fungsi untuk memainkan suara
-local function playSprintSound(soundType)
-    if not soundCache[soundType] then
-        loadSoundInCache(soundType)
-    end
-    
-    local sound = soundCache[soundType]
-    
-    -- Stop suara sebelumnya jika masih bermain
-    if sound.Playing then
-        sound:Stop()
-    end
-    
-    -- Reset posisi dan mainkan
-    sound.TimePosition = 0
-    sound:Play()
-end
 
 -- ==================== TOGGLE BUTTON PC ====================
 local toggleButtonPC
@@ -154,13 +104,6 @@ if isPC then
     toggleButtonPC.MouseButton1Click:Connect(function()
         isSprinting = not isSprinting
         setSprinting(isSprinting)
-        
-        -- Mainkan suara sesuai status sprint
-        if isSprinting then
-            playSprintSound("start")
-        else
-            playSprintSound("stop")
-        end
         
         -- Animasi rotasi saat diklik
         local rotationTween = game:GetService("TweenService"):Create(
@@ -275,13 +218,6 @@ if isMobile then
     toggleButtonMobile.MouseButton1Click:Connect(function()
         isSprinting = not isSprinting
         setSprinting(isSprinting)
-        
-        -- Mainkan suara sesuai status sprint
-        if isSprinting then
-            playSprintSound("start")
-        else
-            playSprintSound("stop")
-        end
         
         -- Animasi scale saat diklik
         local scaleTween = game:GetService("TweenService"):Create(
