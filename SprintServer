@@ -79,13 +79,14 @@ local function createServerLightSticks(character)
         local trail = Instance.new("Trail")
         trail.Attachment0 = attachment0
         trail.Attachment1 = attachment1
-        trail.Lifetime = 0.5
+        trail.Lifetime = 2.0
         trail.MinLength = 0
         trail.MaxLength = 0
         trail.Color = ColorSequence.new(Color3.fromRGB(255, 0, 0))
         trail.Transparency = NumberSequence.new({
             NumberSequenceKeypoint.new(0, 0),
-            NumberSequenceKeypoint.new(0.5, 0.3),
+            NumberSequenceKeypoint.new(0.3, 0.2),
+            NumberSequenceKeypoint.new(0.7, 0.5),
             NumberSequenceKeypoint.new(1, 1)
         })
         trail.Parent = lightStick
