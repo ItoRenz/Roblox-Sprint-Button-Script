@@ -8,12 +8,16 @@ local humanoid = character:WaitForChild("Humanoid")
 local rootPart = character:WaitForChild("HumanoidRootPart")
 
 local isSprinting = false
-local normalSpeed = 16 -- Kecepatan normal
-local sprintSpeed = normalSpeed * 2 -- Kecepatan lari (2x lipat)
-local sprintEffects = {} -- Untuk menyimpan light stick di tangan
-local currentColor = Color3.fromRGB(255, 0, 0) -- Warna saat ini
+local normalSpeed = 16
+local sprintSpeed = normalSpeed * 2
+local sprintEffects = {}
+local currentColor = Color3.fromRGB(255, 0, 0)
 
--- Deteksi Platform (Mobile atau PC)
+-- Sound Asset IDs
+local SPRINT_START_SOUND_ID = "rbxassetid://111900188409004"
+local SPRINT_STOP_SOUND_ID = "rbxassetid://120904325097533"
+
+-- Deteksi Platform
 local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 local isPC = not isMobile
 
@@ -22,6 +26,68 @@ local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "SprintGui"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
+
+-- Cache untuk sound effects
+local soundCache = {
+    start = nil,
+    stop = nil
+}
+
+-- Fungsi untuk memuat dan cache sound (DIPERBAIKI)
+local function loadSoundInCache(soundType)
+    -- Hapus sound lama jika ada
+    if soundCache[soundType] and soundCache[soundType].Parent then
+        soundCache[soundType]:Destroy()
+    end
+    
+    local sound = Instance.new("Sound")
+    sound.Name = "SprintSound_" .. soundType
+    
+    if soundType == "start" then
+        sound.SoundId = SPRINT_START_SOUND_ID
+    elseif soundType == "stop" then
+        sound.SoundId = SPRINT_STOP_SOUND_ID
+    end
+    
+    sound.Volume = 0.5
+    sound.Parent = rootPart
+    soundCache[soundType] = sound
+    
+    return sound
+end
+
+-- Fungsi untuk memainkan suara (DIPERBAIKI)
+local function playSprintSound(soundType)
+    -- Pastikan rootPart masih valid
+    if not rootPart or not rootPart.Parent then
+        warn("RootPart tidak valid, sound tidak dapat dimainkan")
+        return
+    end
+    
+    -- Load ulang sound jika tidak ada atau parent-nya hilang
+    if not soundCache[soundType] or not soundCache[soundType].Parent then
+        loadSoundInCache(soundType)
+    end
+    
+    local sound = soundCache[soundType]
+    
+    if sound and sound.Parent then
+        -- Stop suara sebelumnya jika masih bermain
+        if sound.Playing then
+            sound:Stop()
+        end
+        
+        -- Reset posisi dan mainkan
+        sound.TimePosition = 0
+        sound:Play()
+    else
+        warn("Sound " .. soundType .. " tidak dapat dimainkan")
+    end
+end
+
+-- Pre-load sounds (akan di-reload saat respawn)
+loadSoundInCache("start")
+loadSoundInCache("stop")
 
 -- ==================== TOGGLE BUTTON PC ====================
 local toggleButtonPC
@@ -54,12 +120,10 @@ if isPC then
     shadowCornerPC.CornerRadius = UDim.new(0, 15)
     shadowCornerPC.Parent = shadowPC
 
-    -- UICorner untuk button PC
     local cornerPC = Instance.new("UICorner")
     cornerPC.CornerRadius = UDim.new(0, 15)
     cornerPC.Parent = toggleButtonPC
 
-    -- UIStroke untuk border PC
     local strokePC = Instance.new("UIStroke")
     strokePC.Color = Color3.fromRGB(200, 230, 255)
     strokePC.Thickness = 3
@@ -105,6 +169,13 @@ if isPC then
         isSprinting = not isSprinting
         setSprinting(isSprinting)
         
+        -- Mainkan suara sesuai status sprint
+        if isSprinting then
+            playSprintSound("start")
+        else
+            playSprintSound("stop")
+        end
+        
         -- Animasi rotasi saat diklik
         local rotationTween = game:GetService("TweenService"):Create(
             toggleButtonPC,
@@ -133,7 +204,6 @@ if isPC then
         strokeTween:Play()
     end)
 
-    -- Store reference untuk update UI
     _G.updateButtonUIPC = updateButtonUIPC
 end
 
@@ -153,7 +223,6 @@ if isMobile then
     toggleButtonMobile.Visible = true
     toggleButtonMobile.Parent = screenGui
 
-    -- Shadow effect Mobile
     local shadowMobile = Instance.new("TextButton")
     shadowMobile.Name = "Shadow"
     shadowMobile.Size = UDim2.new(1, 4, 1, 4)
@@ -168,12 +237,10 @@ if isMobile then
     shadowCornerMobile.CornerRadius = UDim.new(0, 15)
     shadowCornerMobile.Parent = shadowMobile
 
-    -- UICorner untuk button Mobile
     local cornerMobile = Instance.new("UICorner")
     cornerMobile.CornerRadius = UDim.new(0, 15)
     cornerMobile.Parent = toggleButtonMobile
 
-    -- UIStroke untuk border Mobile
     local strokeMobile = Instance.new("UIStroke")
     strokeMobile.Color = Color3.fromRGB(200, 230, 255)
     strokeMobile.Thickness = 3
@@ -219,6 +286,13 @@ if isMobile then
         isSprinting = not isSprinting
         setSprinting(isSprinting)
         
+        -- Mainkan suara sesuai status sprint
+        if isSprinting then
+            playSprintSound("start")
+        else
+            playSprintSound("stop")
+        end
+        
         -- Animasi scale saat diklik
         local scaleTween = game:GetService("TweenService"):Create(
             toggleButtonMobile,
@@ -236,7 +310,6 @@ if isMobile then
         end)
     end)
 
-    -- Hover effect untuk button Mobile
     toggleButtonMobile.MouseEnter:Connect(function()
         local strokeTween = game:GetService("TweenService"):Create(
             strokeMobile,
@@ -255,7 +328,6 @@ if isMobile then
         strokeTween:Play()
     end)
 
-    -- Store reference untuk update UI
     _G.updateButtonUIMobile = updateButtonUIMobile
 end
 
@@ -263,7 +335,6 @@ end
 
 -- Fungsi untuk membuat light stick dengan trail effect
 local function createHandLightSticks()
-    -- Hapus efek lama
     for _, effect in pairs(sprintEffects) do
         if effect and effect.Parent then
             effect:Destroy()
@@ -271,7 +342,6 @@ local function createHandLightSticks()
     end
     sprintEffects = {}
     
-    -- Cari tangan kanan dan kiri
     local rightHand = character:FindFirstChild("RightHand")
     local leftHand = character:FindFirstChild("LeftHand")
     
@@ -279,7 +349,6 @@ local function createHandLightSticks()
     if rightHand then table.insert(hands, rightHand) end
     if leftHand then table.insert(hands, leftHand) end
     
-    -- Jika tidak ada, coba cari dari humanoid
     if #hands == 0 then
         for _, part in pairs(character:GetChildren()) do
             if part.Name == "RightHand" or part.Name == "LeftHand" or 
@@ -289,7 +358,6 @@ local function createHandLightSticks()
         end
     end
     
-    -- Buat light stick untuk setiap tangan
     for _, hand in pairs(hands) do
         local lightStick = Instance.new("Part")
         lightStick.Name = "LightStick"
@@ -302,25 +370,14 @@ local function createHandLightSticks()
         lightStick.BottomSurface = Enum.SurfaceType.Smooth
         lightStick.Parent = hand
         
-        -- Warna awal merah
         lightStick.Color = Color3.fromRGB(255, 0, 0)
         lightStick.Transparency = 0.1
         
-        -- Weld ke tangan
         local weld = Instance.new("WeldConstraint")
         weld.Part0 = hand
         weld.Part1 = lightStick
         weld.Parent = lightStick
         
-        -- PointLight untuk efek cahaya tambahan (DISABLED)
-        -- local light = Instance.new("PointLight")
-        -- light.Brightness = 2
-        -- light.Range = 10
-        -- light.Color = Color3.fromRGB(255, 0, 0)
-        -- light.Parent = lightStick
-        local light = nil
-        
-        -- Buat Attachment untuk Trail
         local attachment0 = Instance.new("Attachment")
         attachment0.Parent = lightStick
         attachment0.Position = Vector3.new(-0.75, 0, 0)
@@ -329,11 +386,10 @@ local function createHandLightSticks()
         attachment1.Parent = lightStick
         attachment1.Position = Vector3.new(0.75, 0, 0)
         
-        -- Buat Trail effect (cahaya memanjang)
         local trail = Instance.new("Trail")
         trail.Attachment0 = attachment0
         trail.Attachment1 = attachment1
-        trail.Lifetime = 0.5 -- Durasi jejak cahaya
+        trail.Lifetime = 0.5
         trail.MinLength = 0
         trail.MaxLength = 0
         trail.Color = ColorSequence.new(Color3.fromRGB(255, 0, 0))
@@ -344,7 +400,7 @@ local function createHandLightSticks()
         })
         trail.Parent = lightStick
         
-        table.insert(sprintEffects, {stick = lightStick, light = light, trail = trail, 
+        table.insert(sprintEffects, {stick = lightStick, light = nil, trail = trail, 
                                      attachment0 = attachment0, attachment1 = attachment1})
     end
 end
@@ -371,7 +427,6 @@ function setSprinting(value)
         removeHandLightSticks()
     end
     
-    -- Update UI sesuai platform
     if isPC and _G.updateButtonUIPC then
         _G.updateButtonUIPC()
     elseif isMobile and _G.updateButtonUIMobile then
@@ -379,60 +434,52 @@ function setSprinting(value)
     end
 end
 
--- ==================== INPUT HANDLING ====================
-
--- Keyboard input removed - only toggle button controls
-
 -- ==================== EFFECTS ====================
 
 -- Update warna light stick saat sprint
 RunService.Heartbeat:Connect(function()
     if isSprinting then
-        -- Update warna dengan rainbow effect
         local time = tick() * 3
         local colorIndex = time % 12
         
         local r, g, b
         
         if colorIndex < 1 then
-            r = 255; g = 0; b = 0 -- Merah Cerah
+            r = 255; g = 0; b = 0
         elseif colorIndex < 2 then
-            r = 255; g = 165; b = 0 -- Orange
+            r = 255; g = 165; b = 0
         elseif colorIndex < 3 then
-            r = 255; g = 255; b = 0 -- Kuning Cerah
+            r = 255; g = 255; b = 0
         elseif colorIndex < 4 then
-            r = 50; g = 255; b = 0 -- Lime Green
+            r = 50; g = 255; b = 0
         elseif colorIndex < 5 then
-            r = 0; g = 255; b = 100 -- Hijau Cerah
+            r = 0; g = 255; b = 100
         elseif colorIndex < 6 then
-            r = 0; g = 255; b = 255 -- Cyan
+            r = 0; g = 255; b = 255
         elseif colorIndex < 7 then
-            r = 0; g = 100; b = 255 -- Biru Cerah
+            r = 0; g = 100; b = 255
         elseif colorIndex < 8 then
-            r = 50; g = 50; b = 255 -- Biru Dongker
+            r = 50; g = 50; b = 255
         elseif colorIndex < 9 then
-            r = 200; g = 0; b = 255 -- Ungu
+            r = 200; g = 0; b = 255
         elseif colorIndex < 10 then
-            r = 255; g = 0; b = 255 -- Magenta
+            r = 255; g = 0; b = 255
         elseif colorIndex < 11 then
-            r = 255; g = 100; b = 200 -- Pink Cerah
+            r = 255; g = 100; b = 200
         else
-            r = 255; g = 255; b = 255 -- Putih Cemerlang
+            r = 255; g = 255; b = 255
         end
         
         currentColor = Color3.fromRGB(r, g, b)
         
-        -- Apply warna ke semua light stick dan trail
         for i, effect in pairs(sprintEffects) do
             if effect.stick and effect.stick.Parent then
                 effect.stick.Color = currentColor
                 
-                -- Update trail color
                 if effect.trail then
                     effect.trail.Color = ColorSequence.new(currentColor)
                 end
                 
-                -- Efek pulsing pada transparency
                 local pulse = math.sin(time * 8) * 0.15 + 0.2
                 effect.stick.Transparency = pulse
             end
@@ -440,14 +487,19 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- ==================== RESPAWN HANDLING ====================
+-- ==================== RESPAWN HANDLING (DIPERBAIKI) ====================
 
--- Handle respawn - update character reference
+-- Handle respawn - update character reference dan reload sounds
 player.CharacterAdded:Connect(function(newCharacter)
     character = newCharacter
     humanoid = character:WaitForChild("Humanoid")
     rootPart = character:WaitForChild("HumanoidRootPart")
     sprintEffects = {}
+    
+    -- PENTING: Reload sound effects setelah respawn
+    task.wait(0.5) -- Tunggu sebentar agar character fully loaded
+    loadSoundInCache("start")
+    loadSoundInCache("stop")
     
     -- Terapkan sprint state ke character baru
     if isSprinting then
