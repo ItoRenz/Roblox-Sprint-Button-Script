@@ -1,201 +1,219 @@
-# 🏃‍♂️ Roblox Sprint System with Light Stick Effects
+# 🏃‍♂️ Roblox Sprint System with RGB Lightsticks
 
-A feature-rich sprint system for Roblox games with rainbow light stick effects, sound effects, and cross-platform support (PC & Mobile).
+A full-featured sprint system for Roblox with animated RGB lightsticks that are visible to all players. Features a modern UI with platform detection (PC/Mobile) and smooth animations.
+
+![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![Roblox](https://img.shields.io/badge/Roblox-Script-red.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 ## ✨ Features
 
-- **Toggle Sprint System** - Easy-to-use toggle button for sprint activation
-- **Rainbow Light Stick Effects** - Dynamic color-changing light sticks attached to player's hands
-- **Trail Effects** - Beautiful trailing effects following hand movements
-- **Sound Effects** - Sprint start/stop sound effects with proper caching
-- **Cross-Platform Support** - Works on both PC and Mobile devices
-- **Respawn Protection** - Maintains functionality after character death/respawn
-- **Speed Multiplier** - 2x speed boost when sprinting
-- **Smooth Animations** - Button hover effects and transitions
+- 🎮 **Cross-Platform Support** - Automatic detection for PC and Mobile devices
+- 🌈 **RGB Lightstick Effects** - Animated rainbow lightsticks visible to all players
+- 🎨 **Trail Effects** - Beautiful trail effects that follow player movement
+- 🔊 **Sound Effects** - Sprint start/stop sounds with smart caching
+- 💨 **Speed Boost** - Doubles walk speed when sprinting (20 → 40)
+- 📱 **Modern UI** - Sleek toggle button with status indicator
+- 🔄 **Respawn Persistence** - Maintains sprint state after respawn
+- 🌐 **Server-Client Architecture** - Optimized network replication
+- ⚡ **Performance Optimized** - Color update throttling to reduce network load
 
-## 🎮 Controls
+## 📦 Installation
 
-### PC
-- Click the toggle button on the right side of the screen
-- Status displays: "WALK" (normal) or "RUNNING" (sprint)
+### 1. File Structure
 
-### Mobile
-- Tap the toggle button on the right side of the screen
-- Optimized button size for touch devices
-
-## 🎨 Visual Effects
-
-### Light Sticks
-- **Location**: Attached to both hands
-- **Shape**: Cylindrical neon sticks
-- **Colors**: 12-color rainbow cycle (Red → Orange → Yellow → Lime → Green → Cyan → Blue → Purple → Magenta → Pink → White)
-- **Trail**: Fading trail effect following hand movements
-- **Pulsing**: Dynamic transparency pulsing effect
-
-### Rainbow Color Sequence
-1. Bright Red
-2. Orange
-3. Bright Yellow
-4. Lime Green
-5. Bright Green
-6. Cyan
-7. Bright Blue
-8. Deep Blue
-9. Purple
-10. Magenta
-11. Bright Pink
-12. Brilliant White
-
-## 🔊 Sound Effects
-
-- **Sprint Start Sound**: Plays when activating sprint
-- **Sprint Stop Sound**: Plays when deactivating sprint
-- **Smart Caching**: Sounds are cached and reloaded after respawn
-
-### Custom Sound IDs
-```lua
-local SPRINT_START_SOUND_ID = "rbxassetid://111900188409004"
-local SPRINT_STOP_SOUND_ID = "rbxassetid://120904325097533"
+```
+YourGame
+├── ServerScriptService
+│   └── SprintServer.lua
+└── StarterPlayer
+    └── StarterPlayerScripts
+        └── SprintClient.lua
 ```
 
-## 📋 Installation
+### 2. Setup Instructions
 
-1. Open your Roblox game in Roblox Studio
-2. Create a **LocalScript** in `StarterPlayer > StarterPlayerScripts`
-3. Copy and paste the entire script code
-4. **(Optional)** Replace the sound asset IDs with your own sounds
-5. Test in Play Mode
+1. **Create Server Script:**
+   - In Roblox Studio, go to `ServerScriptService`
+   - Insert a new `Script` (not LocalScript)
+   - Name it `SprintServer`
+   - Copy and paste the server code
+
+2. **Create Client Script:**
+   - Go to `StarterPlayer > StarterPlayerScripts`
+   - Insert a new `LocalScript`
+   - Name it `SprintClient`
+   - Copy and paste the client code
+
+3. **Test the Game:**
+   - Press F5 to test in Studio
+   - Click the sprint button on the right side of screen
+   - Test with multiple players to see lightsticks replicate
+
+## 🎮 How to Use
+
+### For Players:
+- **PC:** Click the sprint button or press it to toggle sprint mode
+- **Mobile:** Tap the sprint button to toggle sprint mode
+- **Status:** Watch the status label change from "WALK" to "RUNNING"
+
+### Controls:
+| Platform | Action |
+|----------|--------|
+| PC | Click sprint button (right side, mid-screen) |
+| Mobile | Tap sprint button (right side, mid-screen) |
 
 ## ⚙️ Configuration
 
 ### Speed Settings
+Edit in both `SprintServer.lua` and `SprintClient.lua`:
 ```lua
-local normalSpeed = 16        -- Default walk speed
-local sprintSpeed = normalSpeed * 2  -- Sprint speed (32)
+local normalSpeed = 20  -- Default walk speed
+local sprintSpeed = normalSpeed * 2  -- Sprint speed (40)
 ```
 
-### Color Customization
-Modify the rainbow color sequence in the `RunService.Heartbeat` section:
+### Sound Assets
+Edit in `SprintClient.lua`:
 ```lua
-if colorIndex < 1 then
-    r = 255; g = 0; b = 0  -- Custom color here
-end
+local SPRINT_START_SOUND_ID = "rbxassetid://YOUR_SOUND_ID"
+local SPRINT_STOP_SOUND_ID = "rbxassetid://YOUR_SOUND_ID"
 ```
 
-### Button Position (PC)
+### Lightstick Appearance
+Edit in `SprintServer.lua` (createServerLightSticks function):
 ```lua
-toggleButtonPC.Position = UDim2.new(1, -40, 0.5, -90)
+lightStick.Size = Vector3.new(1.5, 0.2, 0.2)  -- Cylinder dimensions
+lightStick.Material = Enum.Material.Neon  -- Material type
+lightStick.Transparency = 0.1  -- Initial transparency
 ```
 
-### Button Position (Mobile)
+### Color Update Frequency
+Edit in `SprintClient.lua`:
 ```lua
-toggleButtonMobile.Position = UDim2.new(1, -38, 0.5, -70)
+local COLOR_UPDATE_INTERVAL = 0.1  -- Update every 0.1 seconds
 ```
 
-## 🐛 Bug Fixes (v1.1)
+## 🎨 RGB Color Cycle
 
-### Fixed Issues:
-- ✅ Sound effects not working after character respawn
-- ✅ Sound cache not updating with new character
-- ✅ RootPart reference becoming invalid after death
+The lightsticks cycle through 12 colors:
+1. Red
+2. Orange
+3. Yellow
+4. Lime Green
+5. Mint Green
+6. Cyan
+7. Sky Blue
+8. Blue
+9. Purple
+10. Magenta
+11. Pink
+12. White
 
-### Key Improvements:
-- Automatic sound reloading on respawn
-- Enhanced error handling with validation checks
-- Proper cleanup and reinitialization of sound objects
+## 🏗️ Technical Architecture
 
-## 🛠️ Technical Details
+### Server-Client Communication
 
-### Services Used
-- `Players` - Player management
-- `UserInputService` - Input detection and platform checking
-- `RunService` - Frame-by-frame updates for effects
-- `TweenService` - Smooth UI animations
-
-### Key Components
-1. **Sound Cache System**: Efficient sound management with automatic reload
-2. **Platform Detection**: Automatic PC/Mobile detection
-3. **Effect Management**: Dynamic light stick creation/destruction
-4. **Respawn Handler**: Maintains functionality across character respawns
-
-## 📱 Platform Support
-
-| Platform | Supported | Notes |
-|----------|-----------|-------|
-| PC | ✅ | Full keyboard and mouse support |
-| Mobile | ✅ | Touch-optimized UI |
-| Console | ⚠️ | Untested, should work with controller |
-| VR | ⚠️ | Not optimized |
-
-## 🎯 Use Cases
-
-- **Racing Games**: Enhanced player movement
-- **Role-playing Games**: Immersive character movement
-- **Adventure Games**: Quick navigation
-- **Showcases**: Stylish player effects
-- **Obbies**: Speed boost mechanics
-
-## 📄 Code Structure
-
+```mermaid
+graph LR
+    A[Client: Click Button] --> B[RemoteEvent: ToggleSprint]
+    B --> C[Server: Create/Remove Lightsticks]
+    C --> D[Server: Change WalkSpeed]
+    E[Client: Calculate RGB Color] --> F[RemoteEvent: UpdateColor]
+    F --> G[Server: Update Lightstick Color]
+    G --> H[All Players See Color Change]
 ```
-Script
-├── Services & Variables
-├── Sound System
-│   ├── loadSoundInCache()
-│   └── playSprintSound()
-├── UI Components
-│   ├── PC Toggle Button
-│   └── Mobile Toggle Button
-├── Core Functions
-│   ├── createHandLightSticks()
-│   ├── removeHandLightSticks()
-│   └── setSprinting()
-├── Visual Effects Loop
-└── Respawn Handler
-```
+
+### Remote Events
+
+| Event Name | Direction | Purpose |
+|------------|-----------|---------|
+| `ToggleSprint` | Client → Server | Toggle sprint state on/off |
+| `UpdateColor` | Client → Server | Update lightstick RGB color |
+
+## 🔧 Troubleshooting
+
+### Issue: Lightsticks not visible to other players
+**Solution:** Make sure the server script is in `ServerScriptService`, not `StarterPlayerScripts`
+
+### Issue: Sound not playing after respawn
+**Solution:** The script automatically reloads sounds. Check if sound IDs are correct.
+
+### Issue: Sprint button not appearing
+**Solution:** Check if the client script is in `StarterPlayerScripts` as a LocalScript
+
+### Issue: WalkSpeed not changing
+**Solution:** Verify that both scripts have the same speed values configured
+
+## 📊 Performance Considerations
+
+- Color updates are throttled to 10 updates/second per player
+- Sounds are cached to prevent repeated asset loading
+- Lightsticks are destroyed and recreated on respawn to prevent memory leaks
+- Server validates all client requests for security
 
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-### Areas for Improvement:
-- Custom color schemes
-- More trail effect options
-- Particle effects
-- Stamina system
-- Animation integration
+### Development Guidelines:
+1. Test with multiple players before submitting
+2. Maintain cross-platform compatibility
+3. Keep network traffic optimized
+4. Document any new configuration options
 
-## 📝 License
+## 📝 Version History
 
-This project is free to use and modify for your Roblox games.
+### v1.0.0 (2025-10-22)
+- Initial release
+- Cross-platform support (PC/Mobile)
+- RGB lightstick effects
+- Server-client architecture
+- Trail effects
+- Sound effects with caching
+- Respawn persistence
 
-## 🔗 Resources
+## 📄 License
 
-- [Roblox Developer Hub](https://create.roblox.com/docs)
-- [Sound Asset Library](https://create.roblox.com/marketplace/audio)
+This project is licensed under the MIT License - see below for details:
 
-## ⚠️ Known Limitations
+```
+MIT License
 
-- Light sticks attach to hand parts only (R15 avatars work best)
-- Sound IDs must be valid and accessible
-- Performance may vary with many players
+Copyright (c) 2025
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+## 🙏 Acknowledgments
+
+- Thanks to the Roblox developer community
+- Inspired by modern sprint systems in popular Roblox games
 
 ## 📞 Support
 
-If you encounter any issues:
-1. Check that sound asset IDs are correct
-2. Ensure script is in `StarterPlayerScripts`
-3. Verify the script runs as a LocalScript
-4. Check output console for error messages
-
-## 🎉 Credits
-
-Created for the Roblox developer community
+If you encounter any issues or have questions:
+1. Check the Troubleshooting section above
+2. Open an issue on GitHub
+3. Provide details about your problem (screenshots help!)
 
 ---
 
-**Version**: 1.1  
-**Last Updated**: 2025  
-**Status**: Active Development
+**Made with ❤️ for the Roblox community**
 
-Made with ❤️ for Roblox developers
+⭐ Star this repository if you find it helpful!
