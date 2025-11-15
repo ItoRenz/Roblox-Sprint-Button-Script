@@ -2,7 +2,6 @@
 	Sprint System - Server Script
 	Author: ItoRenz00
 	Description: Handles server-side sprint logic, lightstick creation, and player state management
-	Features: Speed management, rainbow lightstick creation, trail effects, player state persistence
 --]]
 
 -- ==================== SERVICES ====================
@@ -13,6 +12,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local NORMAL_SPEED = 20
 local SPRINT_MULTIPLIER = 2
 local SPRINT_SPEED = NORMAL_SPEED * SPRINT_MULTIPLIER
+local COLOR_UPDATE_COOLDOWN = 0.1 -- Prevent spam updates
 
 -- Lightstick Configuration
 local LIGHTSTICK_CONFIG = {
@@ -37,30 +37,66 @@ updateColorEvent.Parent = remoteFolder
 
 -- ==================== PLAYER DATA ====================
 local playerSprintData = {}
+local playerLightStickCache = {} -- Dictionary for O(1) access
+local playerLastColorUpdate = {} -- Track last color update time per player
+
+-- ==================== AVATAR DETECTION ====================
+
+--- Detect if character is R6 or R15
+local function getAvatarType(character)
+	local humanoid = character:FindFirstChild("Humanoid")
+	if humanoid then
+		if humanoid.RigType == Enum.HumanoidRigType.R6 then
+			return "R6"
+		elseif humanoid.RigType == Enum.HumanoidRigType.R15 then
+			return "R15"
+		end
+	end
+	
+	-- Fallback detection based on parts
+	if character:FindFirstChild("Right Arm") or character:FindFirstChild("Left Arm") then
+		return "R6"
+	elseif character:FindFirstChild("RightHand") or character:FindFirstChild("LeftHand") then
+		return "R15"
+	end
+	
+	return "R15" -- Default to R15 if can't detect
+end
 
 -- ==================== LIGHTSTICK FUNCTIONS ====================
 
 --- Find hand parts in character (supports R15 and R6)
 local function findHandParts(character)
 	local hands = {}
+	local avatarType = getAvatarType(character)
 	
-	-- Try R15 first
-	local rightHand = character:FindFirstChild("RightHand")
-	local leftHand = character:FindFirstChild("LeftHand")
+	if avatarType == "R15" then
+		-- R15 uses RightHand and LeftHand
+		local rightHand = character:FindFirstChild("RightHand")
+		local leftHand = character:FindFirstChild("LeftHand")
+		
+		if rightHand then table.insert(hands, rightHand) end
+		if leftHand then table.insert(hands, leftHand) end
+		
+	elseif avatarType == "R6" then
+		-- R6 uses "Right Arm" and "Left Arm" (with space)
+		local rightArm = character:FindFirstChild("Right Arm")
+		local leftArm = character:FindFirstChild("Left Arm")
+		
+		if rightArm then table.insert(hands, rightArm) end
+		if leftArm then table.insert(hands, leftArm) end
+	end
 	
-	if rightHand then table.insert(hands, rightHand) end
-	if leftHand then table.insert(hands, leftHand) end
-	
-	-- Fallback to R6 or alternative names
+	-- Additional fallback search if hands are still empty
 	if #hands == 0 then
+		warn("No hand parts found for " .. character.Name .. ", searching all parts...")
 		for _, part in pairs(character:GetChildren()) do
-			if part:IsA("BasePart") and (
-				part.Name == "RightHand" or 
-				part.Name == "LeftHand" or 
-				part.Name == "RightLowerArm" or 
-				part.Name == "LeftLowerArm"
-			) then
-				table.insert(hands, part)
+			if part:IsA("BasePart") then
+				local partName = part.Name:lower()
+				if partName:find("hand") or partName:find("arm") then
+					table.insert(hands, part)
+					if #hands >= 2 then break end -- Stop after finding 2 parts
+				end
 			end
 		end
 	end
@@ -97,7 +133,7 @@ local function createTrailEffect(lightStick, color)
 end
 
 --- Create a single lightstick on a hand part
-local function createLightStick(hand, color)
+local function createLightStick(hand, color, playerId)
 	local lightStick = Instance.new("Part")
 	lightStick.Name = "LightStick"
 	lightStick.Shape = Enum.PartType.Cylinder
@@ -118,28 +154,58 @@ local function createLightStick(hand, color)
 	weld.Parent = lightStick
 	
 	-- Add trail effect
-	createTrailEffect(lightStick, lightStick.Color)
+	local trail = createTrailEffect(lightStick, lightStick.Color)
+	
+	-- ULTRA OPTIMIZATION: Store lightstick with trail reference in dictionary
+	if not playerLightStickCache[playerId] then
+		playerLightStickCache[playerId] = {}
+	end
+	playerLightStickCache[playerId][lightStick] = trail -- Store trail for quick access
 	
 	return lightStick
 end
 
 --- Create lightsticks on character's hands
-local function createServerLightSticks(character)
-	-- Remove existing lightsticks
-	removeServerLightSticks(character)
+local function createServerLightSticks(character, playerId)
+	-- Remove existing lightsticks first
+	removeServerLightSticks(character, playerId)
 	
 	local hands = findHandParts(character)
+	local avatarType = getAvatarType(character)
+	
+	if #hands == 0 then
+		warn("No hands found for " .. character.Name .. " (Avatar Type: " .. avatarType .. ")")
+		return
+	end
+	
+	print("Creating lightsticks for " .. character.Name .. " (Avatar Type: " .. avatarType .. ", Found " .. #hands .. " hands)")
 	
 	for _, hand in pairs(hands) do
-		createLightStick(hand, LIGHTSTICK_CONFIG.DefaultColor)
+		createLightStick(hand, LIGHTSTICK_CONFIG.DefaultColor, playerId)
 	end
+	
+	local count = 0
+	for _ in pairs(playerLightStickCache[playerId]) do
+		count = count + 1
+	end
+	print("Cached " .. count .. " lightsticks for player " .. playerId)
 end
 
 --- Remove all lightsticks from character
-function removeServerLightSticks(character)
-	for _, child in pairs(character:GetDescendants()) do
-		if child.Name == "LightStick" then
-			child:Destroy()
+function removeServerLightSticks(character, playerId)
+	-- Clear cache first
+	if playerLightStickCache[playerId] then
+		playerLightStickCache[playerId] = {}
+	end
+	
+	-- Remove physical lightsticks (only search direct children of hands, not all descendants)
+	for _, child in pairs(character:GetChildren()) do
+		if child:IsA("BasePart") then
+			for _, subChild in pairs(child:GetChildren()) do
+				if subChild.Name == "LightStick" then
+					subChild:Destroy()
+				end
+			end
 		end
 	end
 end
@@ -154,29 +220,43 @@ local function setPlayerSprint(player, isSprinting)
 	local humanoid = character:FindFirstChild("Humanoid")
 	if not humanoid then return end
 	
+	local playerId = player.UserId
+	
 	-- Update player data
-	playerSprintData[player.UserId] = isSprinting
+	playerSprintData[playerId] = isSprinting
 	
 	-- Apply speed and lightstick changes
 	if isSprinting then
 		humanoid.WalkSpeed = SPRINT_SPEED
-		createServerLightSticks(character)
+		createServerLightSticks(character, playerId)
 	else
 		humanoid.WalkSpeed = NORMAL_SPEED
-		removeServerLightSticks(character)
+		removeServerLightSticks(character, playerId)
 	end
 end
 
---- Update lightstick colors for a player
-local function updateLightStickColor(character, newColor)
-	for _, child in pairs(character:GetDescendants()) do
-		if child.Name == "LightStick" and child:IsA("Part") then
-			child.Color = newColor
-			
-			-- Update trail color
-			local trail = child:FindFirstChildOfClass("Trail")
-			if trail then
-				trail.Color = ColorSequence.new(newColor)
+--- ULTRA OPTIMIZED: Update lightstick colors using dictionary with cooldown
+local function updateLightStickColor(character, newColor, playerId)
+	-- Check cooldown to prevent spam
+	local lastUpdate = playerLastColorUpdate[playerId] or 0
+	if tick() - lastUpdate < COLOR_UPDATE_COOLDOWN then
+		return -- Skip update if too soon
+	end
+	playerLastColorUpdate[playerId] = tick()
+	
+	-- Use cached lightsticks for maximum performance (dictionary iteration)
+	if playerLightStickCache[playerId] then
+		for lightStick, trail in pairs(playerLightStickCache[playerId]) do
+			if lightStick and lightStick.Parent then
+				lightStick.Color = newColor
+				
+				-- Update trail color (already have reference!)
+				if trail and trail.Parent then
+					trail.Color = ColorSequence.new(newColor)
+				end
+			else
+				-- Clean up invalid reference
+				playerLightStickCache[playerId][lightStick] = nil
 			end
 		end
 	end
@@ -194,29 +274,63 @@ updateColorEvent.OnServerEvent:Connect(function(player, newColor)
 	local character = player.Character
 	if not character then return end
 	
-	updateLightStickColor(character, newColor)
+	updateLightStickColor(character, newColor, player.UserId)
 end)
 
 -- ==================== PLAYER CONNECTION HANDLERS ====================
 
 --- Handle new player joining
 Players.PlayerAdded:Connect(function(player)
+	-- Initialize cache for player
+	playerLightStickCache[player.UserId] = {}
+	playerLastColorUpdate[player.UserId] = 0
+	
 	player.CharacterAdded:Connect(function(character)
 		local humanoid = character:WaitForChild("Humanoid")
 		
 		-- Set normal speed on spawn
 		humanoid.WalkSpeed = NORMAL_SPEED
 		
+		-- Clear cache for new character
+		playerLightStickCache[player.UserId] = {}
+		playerLastColorUpdate[player.UserId] = 0
+		
+		-- Log avatar type for debugging
+		local avatarType = getAvatarType(character)
+		print(player.Name .. " spawned with avatar type: " .. avatarType)
+		
 		-- Restore sprint state if player was sprinting before respawn
 		task.wait(0.5)
 		if playerSprintData[player.UserId] then
 			humanoid.WalkSpeed = SPRINT_SPEED
-			createServerLightSticks(character)
+			createServerLightSticks(character, player.UserId)
 		end
 	end)
 end)
 
 --- Handle player leaving (cleanup)
 Players.PlayerRemoving:Connect(function(player)
-	playerSprintData[player.UserId] = nil
+	local playerId = player.UserId
+	playerSprintData[playerId] = nil
+	playerLightStickCache[playerId] = nil
+	playerLastColorUpdate[playerId] = nil
 end)
+
+-- ==================== EXISTING PLAYERS HANDLING ====================
+
+--- Handle players who are already in the game when script starts
+for _, player in pairs(Players:GetPlayers()) do
+	-- Initialize cache
+	playerLightStickCache[player.UserId] = {}
+	playerLastColorUpdate[player.UserId] = 0
+	
+	if player.Character then
+		local character = player.Character
+		local humanoid = character:FindFirstChild("Humanoid")
+		if humanoid then
+			humanoid.WalkSpeed = NORMAL_SPEED
+			local avatarType = getAvatarType(character)
+			print(player.Name .. " already in game with avatar type: " .. avatarType)
+		end
+	end
+end
