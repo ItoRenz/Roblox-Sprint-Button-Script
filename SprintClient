@@ -2,21 +2,17 @@
 	Sprint System - Client Script
 	Author: ItoRenz00
 	Description: Handles sprint functionality with GUI for both PC and Mobile platforms
-	Features: Toggle sprint, sound effects, rainbow lightstick effect, platform detection
 --]]
 
 -- ==================== SERVICES ====================
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 -- ==================== CONSTANTS ====================
-local SPRINT_START_SOUND_ID = "rbxassetid://111900188409004"
-local SPRINT_STOP_SOUND_ID = "rbxassetid://120904325097533"
-local SOUND_VOLUME = 0.5
-local COLOR_UPDATE_INTERVAL = 0.1
+local COLOR_UPDATE_INTERVAL = 0.3
+local TRANSPARENCY_UPDATE_INTERVAL = 0.15
 local NORMAL_SPEED = 20
 local SPRINT_MULTIPLIER = 2
 
@@ -37,16 +33,15 @@ local normalSpeed = NORMAL_SPEED
 local sprintSpeed = normalSpeed * SPRINT_MULTIPLIER
 local currentColor = Color3.fromRGB(255, 0, 0)
 local lastColorUpdateTime = 0
+local lastTransparencyUpdateTime = 0
 
 -- Platform Detection
 local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 local isPC = not isMobile
 
--- Sound Cache
-local soundCache = {
-	start = nil,
-	stop = nil
-}
+-- EXTREME OPTIMIZATION: Array storage for fastest iteration
+local lightStickArray = {}
+local updateCoroutine = nil
 
 -- ==================== GUI SETUP ====================
 local screenGui = Instance.new("ScreenGui")
@@ -54,51 +49,73 @@ screenGui.Name = "SprintGui"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
--- ==================== SOUND SYSTEM ====================
+-- ==================== AVATAR TYPE DETECTION ====================
 
---- Load and cache sound effect
-local function loadSoundInCache(soundType)
-	if soundCache[soundType] and soundCache[soundType].Parent then
-		soundCache[soundType]:Destroy()
-	end
-
-	local sound = Instance.new("Sound")
-	sound.Name = "SprintSound_" .. soundType
-	sound.SoundId = soundType == "start" and SPRINT_START_SOUND_ID or SPRINT_STOP_SOUND_ID
-	sound.Volume = SOUND_VOLUME
-	sound.Parent = rootPart
-	soundCache[soundType] = sound
-
-	return sound
-end
-
---- Play sprint sound effect
-local function playSprintSound(soundType)
-	if not rootPart or not rootPart.Parent then
-		warn("RootPart is invalid, sound cannot be played")
-		return
-	end
-
-	if not soundCache[soundType] or not soundCache[soundType].Parent then
-		loadSoundInCache(soundType)
-	end
-
-	local sound = soundCache[soundType]
-
-	if sound and sound.Parent then
-		if sound.Playing then
-			sound:Stop()
+--- Detect if character is R6 or R15
+local function getAvatarType(char)
+	local humanoidRig = char:FindFirstChild("Humanoid")
+	if humanoidRig then
+		if humanoidRig.RigType == Enum.HumanoidRigType.R6 then
+			return "R6"
+		elseif humanoidRig.RigType == Enum.HumanoidRigType.R15 then
+			return "R15"
 		end
-		sound.TimePosition = 0
-		sound:Play()
-	else
-		warn("Sound " .. soundType .. " cannot be played")
 	end
+	
+	-- Fallback detection
+	if char:FindFirstChild("Right Arm") or char:FindFirstChild("Left Arm") then
+		return "R6"
+	elseif char:FindFirstChild("RightHand") or char:FindFirstChild("LeftHand") then
+		return "R15"
+	end
+	
+	return "R15" -- Default to R15
 end
 
--- Pre-load sounds
-loadSoundInCache("start")
-loadSoundInCache("stop")
+-- ==================== EXTREME OPTIMIZED LIGHTSTICK MANAGEMENT ====================
+
+--- Initialize lightstick array (called once when sprint starts)
+local function initializeLightSticks()
+	lightStickArray = {}
+	
+	-- Find all lightstick parts (only once!)
+	for _, descendant in ipairs(character:GetDescendants()) do
+		if descendant.Name == "LightStick" and descendant:IsA("Part") then
+			table.insert(lightStickArray, descendant)
+		end
+	end
+	
+	print("Initialized " .. #lightStickArray .. " lightsticks")
+end
+
+--- Clear lightstick array
+local function clearLightSticks()
+	table.clear(lightStickArray)
+	lightStickArray = {}
+end
+
+--- Monitor new lightsticks (only when sprinting)
+local descendantConnection = nil
+local function setupLightStickMonitor()
+	if descendantConnection then
+		descendantConnection:Disconnect()
+	end
+	
+	descendantConnection = character.DescendantAdded:Connect(function(descendant)
+		if isSprinting and descendant.Name == "LightStick" and descendant:IsA("Part") then
+			table.insert(lightStickArray, descendant)
+			print("New lightstick detected")
+		end
+	end)
+end
+
+--- Stop monitoring
+local function stopLightStickMonitor()
+	if descendantConnection then
+		descendantConnection:Disconnect()
+		descendantConnection = nil
+	end
+end
 
 -- ==================== GUI CREATION FUNCTIONS ====================
 
@@ -142,15 +159,74 @@ local function updateButtonUI(button, statusLabel, stroke)
 	end
 end
 
+--- EXTREME OPTIMIZATION: Separate coroutine for updates
+local function startUpdateLoop()
+	if updateCoroutine then
+		task.cancel(updateCoroutine)
+	end
+	
+	updateCoroutine = task.spawn(function()
+		while isSprinting do
+			local currentTime = tick()
+			local time = currentTime * 3
+			
+			-- Update color
+			if currentTime - lastColorUpdateTime >= COLOR_UPDATE_INTERVAL then
+				currentColor = getRainbowColor(time)
+				updateColorEvent:FireServer(currentColor)
+				lastColorUpdateTime = currentTime
+			end
+			
+			-- Update transparency
+			if currentTime - lastTransparencyUpdateTime >= TRANSPARENCY_UPDATE_INTERVAL then
+				local pulse = math.sin(time * 8) * 0.15 + 0.2
+				
+				-- Clean iteration through array
+				local i = 1
+				while i <= #lightStickArray do
+					local lightStick = lightStickArray[i]
+					if lightStick and lightStick.Parent then
+						lightStick.Transparency = pulse
+						i = i + 1
+					else
+						-- Remove invalid reference
+						table.remove(lightStickArray, i)
+					end
+				end
+				
+				lastTransparencyUpdateTime = currentTime
+			end
+			
+			-- Yield to prevent blocking (CRITICAL for performance)
+			task.wait(0.03) -- ~30 FPS for updates (smooth enough)
+		end
+	end)
+end
+
+--- Stop update loop
+local function stopUpdateLoop()
+	if updateCoroutine then
+		task.cancel(updateCoroutine)
+		updateCoroutine = nil
+	end
+end
+
 --- Handle sprint toggle
 local function toggleSprint()
 	isSprinting = not isSprinting
 	toggleSprintEvent:FireServer(isSprinting)
-
+	
 	if isSprinting then
-		playSprintSound("start")
+		-- Start sprint
+		task.wait(0.2) -- Wait for server to create lightsticks
+		initializeLightSticks()
+		setupLightStickMonitor()
+		startUpdateLoop()
 	else
-		playSprintSound("stop")
+		-- Stop sprint
+		stopUpdateLoop()
+		stopLightStickMonitor()
+		clearLightSticks()
 	end
 end
 
@@ -321,10 +397,10 @@ if isMobile then
 	_G.updateButtonUIMobile = updateButtonUIMobile
 end
 
--- ==================== COLOR UPDATE SYSTEM ====================
+-- ==================== COLOR SYSTEM ====================
 
 --- Get rainbow color based on time
-local function getRainbowColor(time)
+function getRainbowColor(time)
 	local colorIndex = time % 12
 	local r, g, b
 
@@ -357,28 +433,6 @@ local function getRainbowColor(time)
 	return Color3.fromRGB(r, g, b)
 end
 
---- Update lightstick color and transparency
-RunService.Heartbeat:Connect(function()
-	if isSprinting then
-		local time = tick() * 3
-		currentColor = getRainbowColor(time)
-
-		-- Send color update to server with throttling
-		if tick() - lastColorUpdateTime >= COLOR_UPDATE_INTERVAL then
-			updateColorEvent:FireServer(currentColor)
-			lastColorUpdateTime = tick()
-		end
-
-		-- Update local transparency for visual feedback
-		local pulse = math.sin(time * 8) * 0.15 + 0.2
-		for _, child in pairs(character:GetDescendants()) do
-			if child.Name == "LightStick" and child:IsA("Part") then
-				child.Transparency = pulse
-			end
-		end
-	end
-end)
-
 -- ==================== RESPAWN HANDLING ====================
 
 player.CharacterAdded:Connect(function(newCharacter)
@@ -386,13 +440,21 @@ player.CharacterAdded:Connect(function(newCharacter)
 	humanoid = character:WaitForChild("Humanoid")
 	rootPart = character:WaitForChild("HumanoidRootPart")
 
-	-- Reload sound effects after respawn
-	task.wait(0.5)
-	loadSoundInCache("start")
-	loadSoundInCache("stop")
+	-- Stop everything
+	stopUpdateLoop()
+	stopLightStickMonitor()
+	clearLightSticks()
 
 	-- Restore sprint state if still sprinting
 	if isSprinting then
 		toggleSprintEvent:FireServer(true)
+		task.wait(0.25)
+		initializeLightSticks()
+		setupLightStickMonitor()
+		startUpdateLoop()
 	end
+	
+	-- Log avatar type for debugging
+	local avatarType = getAvatarType(character)
+	print("Character respawned with avatar type:", avatarType)
 end)
