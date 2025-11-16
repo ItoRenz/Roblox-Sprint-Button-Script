@@ -1,8 +1,10 @@
 --[[
-	Sprint System - Client Script
-	Author: ItoRenz00
-	Description: Handles sprint functionality with GUI for both PC and Mobile platforms
-	Features: Toggle sprint, sound effects, rainbow lightstick effect, platform detection
+===========================================================
+  SPRINT SYSTEM - CLIENT SCRIPT
+  Author       : ItoRenz00
+  Description  : Handles sprint toggle, GUI, and color effect on client.
+  Features     : Platform detection, rainbow color, smooth UI.
+===========================================================
 --]]
 
 -- ==================== SERVICES ====================
@@ -12,41 +14,23 @@ local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
--- ==================== CONSTANTS ====================
-local SPRINT_START_SOUND_ID = "rbxassetid://111900188409004"
-local SPRINT_STOP_SOUND_ID = "rbxassetid://120904325097533"
-local SOUND_VOLUME = 0.5
-local COLOR_UPDATE_INTERVAL = 0.1
-local NORMAL_SPEED = 20
-local SPRINT_MULTIPLIER = 2
-
 -- ==================== VARIABLES ====================
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local rootPart = character:WaitForChild("HumanoidRootPart")
 
--- Remote Events
 local remoteFolder = ReplicatedStorage:WaitForChild("SprintRemotes")
 local toggleSprintEvent = remoteFolder:WaitForChild("ToggleSprint")
 local updateColorEvent = remoteFolder:WaitForChild("UpdateColor")
 
--- Sprint State
 local isSprinting = false
-local normalSpeed = NORMAL_SPEED
-local sprintSpeed = normalSpeed * SPRINT_MULTIPLIER
-local currentColor = Color3.fromRGB(255, 0, 0)
 local lastColorUpdateTime = 0
+local canPrint = true -- debounce for logs
 
--- Platform Detection
+-- ==================== PLATFORM DETECTION ====================
 local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 local isPC = not isMobile
-
--- Sound Cache
-local soundCache = {
-	start = nil,
-	stop = nil
-}
 
 -- ==================== GUI SETUP ====================
 local screenGui = Instance.new("ScreenGui")
@@ -54,55 +38,7 @@ screenGui.Name = "SprintGui"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
--- ==================== SOUND SYSTEM ====================
-
---- Load and cache sound effect
-local function loadSoundInCache(soundType)
-	if soundCache[soundType] and soundCache[soundType].Parent then
-		soundCache[soundType]:Destroy()
-	end
-
-	local sound = Instance.new("Sound")
-	sound.Name = "SprintSound_" .. soundType
-	sound.SoundId = soundType == "start" and SPRINT_START_SOUND_ID or SPRINT_STOP_SOUND_ID
-	sound.Volume = SOUND_VOLUME
-	sound.Parent = rootPart
-	soundCache[soundType] = sound
-
-	return sound
-end
-
---- Play sprint sound effect
-local function playSprintSound(soundType)
-	if not rootPart or not rootPart.Parent then
-		warn("RootPart is invalid, sound cannot be played")
-		return
-	end
-
-	if not soundCache[soundType] or not soundCache[soundType].Parent then
-		loadSoundInCache(soundType)
-	end
-
-	local sound = soundCache[soundType]
-
-	if sound and sound.Parent then
-		if sound.Playing then
-			sound:Stop()
-		end
-		sound.TimePosition = 0
-		sound:Play()
-	else
-		warn("Sound " .. soundType .. " cannot be played")
-	end
-end
-
--- Pre-load sounds
-loadSoundInCache("start")
-loadSoundInCache("stop")
-
--- ==================== GUI CREATION FUNCTIONS ====================
-
---- Create UI elements with common properties
+-- ==================== UTILITIES ====================
 local function createUIElement(className, properties)
 	local element = Instance.new(className)
 	for property, value in pairs(properties) do
@@ -111,7 +47,6 @@ local function createUIElement(className, properties)
 	return element
 end
 
---- Create shadow effect for button
 local function createShadow(parent)
 	return createUIElement("TextButton", {
 		Name = "Shadow",
@@ -125,7 +60,6 @@ local function createShadow(parent)
 	})
 end
 
---- Update button UI based on sprint state
 local function updateButtonUI(button, statusLabel, stroke)
 	if isSprinting then
 		button.BackgroundColor3 = Color3.fromRGB(255, 100, 150)
@@ -142,16 +76,28 @@ local function updateButtonUI(button, statusLabel, stroke)
 	end
 end
 
---- Handle sprint toggle
+local function safePrint(msg)
+	if canPrint then
+		print(msg)
+		canPrint = false
+		task.delay(5, function()
+			canPrint = true
+		end)
+	end
+end
+
+local function updateSprintStatus()
+	if isSprinting then
+		safePrint("Sprint: ON")
+	else
+		safePrint("Sprint: OFF")
+	end
+end
+
 local function toggleSprint()
 	isSprinting = not isSprinting
 	toggleSprintEvent:FireServer(isSprinting)
-
-	if isSprinting then
-		playSprintSound("start")
-	else
-		playSprintSound("stop")
-	end
+	updateSprintStatus()
 end
 
 -- ==================== PC GUI ====================
@@ -172,12 +118,11 @@ if isPC then
 	})
 
 	local shadowPC = createShadow(toggleButtonPC)
-	local shadowCornerPC = createUIElement("UICorner", {
+	createUIElement("UICorner", {
 		CornerRadius = UDim.new(0, 15),
 		Parent = shadowPC
 	})
-
-	local cornerPC = createUIElement("UICorner", {
+	createUIElement("UICorner", {
 		CornerRadius = UDim.new(0, 15),
 		Parent = toggleButtonPC
 	})
@@ -201,8 +146,7 @@ if isPC then
 		BorderSizePixel = 0,
 		Parent = screenGui
 	})
-
-	local statusCornerPC = createUIElement("UICorner", {
+	createUIElement("UICorner", {
 		CornerRadius = UDim.new(0, 8),
 		Parent = statusLabelPC
 	})
@@ -214,7 +158,6 @@ if isPC then
 	toggleButtonPC.MouseButton1Click:Connect(function()
 		toggleSprint()
 		updateButtonUIPC()
-
 		local rotationTween = TweenService:Create(
 			toggleButtonPC,
 			TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
@@ -226,7 +169,6 @@ if isPC then
 	toggleButtonPC.MouseEnter:Connect(function()
 		TweenService:Create(strokePC, TweenInfo.new(0.2), {Thickness = 5}):Play()
 	end)
-
 	toggleButtonPC.MouseLeave:Connect(function()
 		TweenService:Create(strokePC, TweenInfo.new(0.2), {Thickness = 3}):Play()
 	end)
@@ -252,12 +194,11 @@ if isMobile then
 	})
 
 	local shadowMobile = createShadow(toggleButtonMobile)
-	local shadowCornerMobile = createUIElement("UICorner", {
+	createUIElement("UICorner", {
 		CornerRadius = UDim.new(0, 15),
 		Parent = shadowMobile
 	})
-
-	local cornerMobile = createUIElement("UICorner", {
+	createUIElement("UICorner", {
 		CornerRadius = UDim.new(0, 15),
 		Parent = toggleButtonMobile
 	})
@@ -281,8 +222,7 @@ if isMobile then
 		BorderSizePixel = 0,
 		Parent = screenGui
 	})
-
-	local statusCornerMobile = createUIElement("UICorner", {
+	createUIElement("UICorner", {
 		CornerRadius = UDim.new(0, 8),
 		Parent = statusLabelMobile
 	})
@@ -294,7 +234,6 @@ if isMobile then
 	toggleButtonMobile.MouseButton1Click:Connect(function()
 		toggleSprint()
 		updateButtonUIMobile()
-
 		local scaleTween = TweenService:Create(
 			toggleButtonMobile,
 			TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
@@ -302,18 +241,13 @@ if isMobile then
 		)
 		scaleTween:Play()
 		scaleTween.Completed:Connect(function()
-			TweenService:Create(
-				toggleButtonMobile,
-				TweenInfo.new(0.1, Enum.EasingStyle.Back, Enum.EasingDirection.In),
-				{Size = UDim2.new(0, 28, 0, 28)}
-			):Play()
+			TweenService:Create(toggleButtonMobile, TweenInfo.new(0.1, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 28, 0, 28)}):Play()
 		end)
 	end)
 
 	toggleButtonMobile.MouseEnter:Connect(function()
 		TweenService:Create(strokeMobile, TweenInfo.new(0.2), {Thickness = 5}):Play()
 	end)
-
 	toggleButtonMobile.MouseLeave:Connect(function()
 		TweenService:Create(strokeMobile, TweenInfo.new(0.2), {Thickness = 3}):Play()
 	end)
@@ -322,77 +256,46 @@ if isMobile then
 end
 
 -- ==================== COLOR UPDATE SYSTEM ====================
-
---- Get rainbow color based on time
 local function getRainbowColor(time)
 	local colorIndex = time % 12
 	local r, g, b
 
-	if colorIndex < 1 then
-		r, g, b = 255, 0, 0
-	elseif colorIndex < 2 then
-		r, g, b = 255, 165, 0
-	elseif colorIndex < 3 then
-		r, g, b = 255, 255, 0
-	elseif colorIndex < 4 then
-		r, g, b = 50, 255, 0
-	elseif colorIndex < 5 then
-		r, g, b = 0, 255, 100
-	elseif colorIndex < 6 then
-		r, g, b = 0, 255, 255
-	elseif colorIndex < 7 then
-		r, g, b = 0, 100, 255
-	elseif colorIndex < 8 then
-		r, g, b = 50, 50, 255
-	elseif colorIndex < 9 then
-		r, g, b = 200, 0, 255
-	elseif colorIndex < 10 then
-		r, g, b = 255, 0, 255
-	elseif colorIndex < 11 then
-		r, g, b = 255, 100, 200
-	else
-		r, g, b = 255, 255, 255
-	end
+	if colorIndex < 1 then r, g, b = 255, 0, 0
+	elseif colorIndex < 2 then r, g, b = 255, 165, 0
+	elseif colorIndex < 3 then r, g, b = 255, 255, 0
+	elseif colorIndex < 4 then r, g, b = 50, 255, 0
+	elseif colorIndex < 5 then r, g, b = 0, 255, 100
+	elseif colorIndex < 6 then r, g, b = 0, 255, 255
+	elseif colorIndex < 7 then r, g, b = 0, 100, 255
+	elseif colorIndex < 8 then r, g, b = 50, 50, 255
+	elseif colorIndex < 9 then r, g, b = 200, 0, 255
+	elseif colorIndex < 10 then r, g, b = 255, 0, 255
+	elseif colorIndex < 11 then r, g, b = 255, 100, 200
+	else r, g, b = 255, 255, 255 end
 
 	return Color3.fromRGB(r, g, b)
 end
 
---- Update lightstick color and transparency
 RunService.Heartbeat:Connect(function()
 	if isSprinting then
 		local time = tick() * 3
-		currentColor = getRainbowColor(time)
-
-		-- Send color update to server with throttling
-		if tick() - lastColorUpdateTime >= COLOR_UPDATE_INTERVAL then
-			updateColorEvent:FireServer(currentColor)
+		local newColor = getRainbowColor(time)
+		if tick() - lastColorUpdateTime >= 0.3 then
+			updateColorEvent:FireServer(newColor)
 			lastColorUpdateTime = tick()
-		end
-
-		-- Update local transparency for visual feedback
-		local pulse = math.sin(time * 8) * 0.15 + 0.2
-		for _, child in pairs(character:GetDescendants()) do
-			if child.Name == "LightStick" and child:IsA("Part") then
-				child.Transparency = pulse
-			end
 		end
 	end
 end)
 
 -- ==================== RESPAWN HANDLING ====================
-
 player.CharacterAdded:Connect(function(newCharacter)
 	character = newCharacter
 	humanoid = character:WaitForChild("Humanoid")
 	rootPart = character:WaitForChild("HumanoidRootPart")
-
-	-- Reload sound effects after respawn
-	task.wait(0.5)
-	loadSoundInCache("start")
-	loadSoundInCache("stop")
-
-	-- Restore sprint state if still sprinting
 	if isSprinting then
 		toggleSprintEvent:FireServer(true)
 	end
 end)
+
+-- ==================== END OF SCRIPT ====================
+print("Author: ItoRenz00 | Sprint Client Loaded Successfully")
