@@ -1,8 +1,10 @@
 --[[
-	Sprint System - Server Script
-	Author: ItoRenz00
-	Description: Handles server-side sprint logic, lightstick creation, and player state management
-	Features: Speed management, rainbow lightstick creation, trail effects, player state persistence
+===========================================================
+  SPRINT SYSTEM - SERVER SCRIPT
+  Author       : ItoRenz00
+  Description  : Handles server-side sprint logic and lightstick effects.
+  Features     : Speed management, lightstick creation, R6/R15 support.
+===========================================================
 --]]
 
 -- ==================== SERVICES ====================
@@ -14,12 +16,11 @@ local NORMAL_SPEED = 20
 local SPRINT_MULTIPLIER = 2
 local SPRINT_SPEED = NORMAL_SPEED * SPRINT_MULTIPLIER
 
--- Lightstick Configuration
 local LIGHTSTICK_CONFIG = {
-	Size = Vector3.new(1.5, 0.2, 0.2),
+	Size = Vector3.new(1.2, 0.15, 0.15),
 	DefaultColor = Color3.fromRGB(255, 0, 0),
-	DefaultTransparency = 0.1,
-	TrailLifetime = 2.0
+	DefaultTransparency = 0.3,
+	TrailLifetime = 1.0
 }
 
 -- ==================== REMOTE EVENTS SETUP ====================
@@ -39,64 +40,51 @@ updateColorEvent.Parent = remoteFolder
 local playerSprintData = {}
 
 -- ==================== LIGHTSTICK FUNCTIONS ====================
-
---- Find hand parts in character (supports R15 and R6)
 local function findHandParts(character)
 	local hands = {}
-	
-	-- Try R15 first
-	local rightHand = character:FindFirstChild("RightHand")
-	local leftHand = character:FindFirstChild("LeftHand")
-	
-	if rightHand then table.insert(hands, rightHand) end
-	if leftHand then table.insert(hands, leftHand) end
-	
-	-- Fallback to R6 or alternative names
-	if #hands == 0 then
-		for _, part in pairs(character:GetChildren()) do
-			if part:IsA("BasePart") and (
-				part.Name == "RightHand" or 
-				part.Name == "LeftHand" or 
-				part.Name == "RightLowerArm" or 
-				part.Name == "LeftLowerArm"
-			) then
-				table.insert(hands, part)
-			end
-		end
+	local humanoid = character:FindFirstChild("Humanoid")
+	if not humanoid then return hands end
+	local rigType = humanoid.RigType
+	if rigType == Enum.HumanoidRigType.R15 then
+		local rightHand = character:FindFirstChild("RightHand")
+		local leftHand = character:FindFirstChild("LeftHand")
+		if rightHand then table.insert(hands, rightHand) end
+		if leftHand then table.insert(hands, leftHand) end
+	elseif rigType == Enum.HumanoidRigType.R6 then
+		local rightArm = character:FindFirstChild("Right Arm")
+		local leftArm = character:FindFirstChild("Left Arm")
+		if rightArm then table.insert(hands, rightArm) end
+		if leftArm then table.insert(hands, leftArm) end
 	end
-	
 	return hands
 end
 
---- Create trail effect for lightstick
 local function createTrailEffect(lightStick, color)
 	local attachment0 = Instance.new("Attachment")
 	attachment0.Parent = lightStick
-	attachment0.Position = Vector3.new(-0.75, 0, 0)
-	
+	attachment0.Position = Vector3.new(-0.6, 0, 0)
 	local attachment1 = Instance.new("Attachment")
 	attachment1.Parent = lightStick
-	attachment1.Position = Vector3.new(0.75, 0, 0)
-	
+	attachment1.Position = Vector3.new(0.6, 0, 0)
 	local trail = Instance.new("Trail")
 	trail.Attachment0 = attachment0
 	trail.Attachment1 = attachment1
 	trail.Lifetime = LIGHTSTICK_CONFIG.TrailLifetime
-	trail.MinLength = 0
+	trail.MinLength = 0.1
 	trail.MaxLength = 0
 	trail.Color = ColorSequence.new(color)
+	trail.LightEmission = 1
+	trail.LightInfluence = 0
+	trail.Brightness = 1
 	trail.Transparency = NumberSequence.new({
 		NumberSequenceKeypoint.new(0, 0),
-		NumberSequenceKeypoint.new(0.3, 0.2),
-		NumberSequenceKeypoint.new(0.7, 0.5),
+		NumberSequenceKeypoint.new(0.5, 0.2),
 		NumberSequenceKeypoint.new(1, 1)
 	})
 	trail.Parent = lightStick
-	
 	return trail
 end
 
---- Create a single lightstick on a hand part
 local function createLightStick(hand, color)
 	local lightStick = Instance.new("Part")
 	lightStick.Name = "LightStick"
@@ -110,54 +98,38 @@ local function createLightStick(hand, color)
 	lightStick.Color = color or LIGHTSTICK_CONFIG.DefaultColor
 	lightStick.Transparency = LIGHTSTICK_CONFIG.DefaultTransparency
 	lightStick.Parent = hand
-	
-	-- Weld to hand
 	local weld = Instance.new("WeldConstraint")
 	weld.Part0 = hand
 	weld.Part1 = lightStick
 	weld.Parent = lightStick
-	
-	-- Add trail effect
 	createTrailEffect(lightStick, lightStick.Color)
-	
 	return lightStick
 end
 
---- Create lightsticks on character's hands
 local function createServerLightSticks(character)
-	-- Remove existing lightsticks
 	removeServerLightSticks(character)
-	
 	local hands = findHandParts(character)
-	
+	if #hands == 0 then return end
 	for _, hand in pairs(hands) do
 		createLightStick(hand, LIGHTSTICK_CONFIG.DefaultColor)
 	end
 end
 
---- Remove all lightsticks from character
 function removeServerLightSticks(character)
-	for _, child in pairs(character:GetDescendants()) do
-		if child.Name == "LightStick" then
-			child:Destroy()
+	for _, descendant in pairs(character:GetDescendants()) do
+		if descendant.Name == "LightStick" then
+			descendant:Destroy()
 		end
 	end
 end
 
 -- ==================== SPRINT MANAGEMENT ====================
-
---- Set player sprint state
 local function setPlayerSprint(player, isSprinting)
 	local character = player.Character
 	if not character then return end
-	
 	local humanoid = character:FindFirstChild("Humanoid")
 	if not humanoid then return end
-	
-	-- Update player data
 	playerSprintData[player.UserId] = isSprinting
-	
-	-- Apply speed and lightstick changes
 	if isSprinting then
 		humanoid.WalkSpeed = SPRINT_SPEED
 		createServerLightSticks(character)
@@ -167,14 +139,11 @@ local function setPlayerSprint(player, isSprinting)
 	end
 end
 
---- Update lightstick colors for a player
 local function updateLightStickColor(character, newColor)
-	for _, child in pairs(character:GetDescendants()) do
-		if child.Name == "LightStick" and child:IsA("Part") then
-			child.Color = newColor
-			
-			-- Update trail color
-			local trail = child:FindFirstChildOfClass("Trail")
+	for _, descendant in pairs(character:GetDescendants()) do
+		if descendant.Name == "LightStick" and descendant:IsA("Part") then
+			descendant.Color = newColor
+			local trail = descendant:FindFirstChildOfClass("Trail")
 			if trail then
 				trail.Color = ColorSequence.new(newColor)
 			end
@@ -182,33 +151,32 @@ local function updateLightStickColor(character, newColor)
 	end
 end
 
--- ==================== EVENT HANDLERS ====================
+local logged = false
+local function logOnce(msg)
+	if not logged then
+		print(msg)
+		logged = true
+	end
+end
 
---- Handle sprint toggle from client
+-- ==================== REMOTE EVENTS ====================
 toggleSprintEvent.OnServerEvent:Connect(function(player, isSprintingState)
 	setPlayerSprint(player, isSprintingState)
 end)
 
---- Handle color update from client
 updateColorEvent.OnServerEvent:Connect(function(player, newColor)
 	local character = player.Character
-	if not character then return end
-	
-	updateLightStickColor(character, newColor)
+	if character then
+		updateLightStickColor(character, newColor)
+	end
 end)
 
--- ==================== PLAYER CONNECTION HANDLERS ====================
-
---- Handle new player joining
+-- ==================== PLAYER EVENTS ====================
 Players.PlayerAdded:Connect(function(player)
 	player.CharacterAdded:Connect(function(character)
-		local humanoid = character:WaitForChild("Humanoid")
-		
-		-- Set normal speed on spawn
+		local humanoid = character:WaitForChild("Humanoid", 10)
+		if not humanoid then return end
 		humanoid.WalkSpeed = NORMAL_SPEED
-		
-		-- Restore sprint state if player was sprinting before respawn
-		task.wait(0.5)
 		if playerSprintData[player.UserId] then
 			humanoid.WalkSpeed = SPRINT_SPEED
 			createServerLightSticks(character)
@@ -216,7 +184,8 @@ Players.PlayerAdded:Connect(function(player)
 	end)
 end)
 
---- Handle player leaving (cleanup)
 Players.PlayerRemoving:Connect(function(player)
 	playerSprintData[player.UserId] = nil
 end)
+
+logOnce("Author: ItoRenz00 | Sprint System Loaded Successfully")
